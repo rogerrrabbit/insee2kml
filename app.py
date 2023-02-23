@@ -3,11 +3,14 @@ import os
 import random
 import string
 import configparser
+import urllib.request
 from PyQt5.QtCore import QVariant
 from qgis.core import *
 from qgis.utils import *
 import tornado.ioloop
 import tornado.web
+import py7zr
+import progressbar
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -191,6 +194,21 @@ class GenerateHandler(tornado.web.RequestHandler):
         os.remove(kml_file)
         self.finish()
 
+class DownloadBar():
+    def __init__(self):
+        self.pbar = None
+
+    def __call__(self, block_num, block_size, total_size):
+        if not self.pbar:
+            self.pbar=progressbar.ProgressBar(maxval=total_size)
+            self.pbar.start()
+
+        downloaded = block_num * block_size
+        if downloaded < total_size:
+            self.pbar.update(downloaded)
+        else:
+            self.pbar.finish()
+
 # Configuration de l'application Tornado
 def make_app():
     return tornado.web.Application([
@@ -199,26 +217,59 @@ def make_app():
         (r'/(favicon.ico)', tornado.web.StaticFileHandler, {"path": ""}),
     ])
 
+# Recherche du fichier de données
+def find_file(cache, folder, file):
+    for root, dirs, files in os.walk(cache):
+        if file in files and re.search(folder, root):
+            return os.path.join(root, file)
+    return NULL
+
+def download_file(url, output_folder):
+    dl_path = os.path.join(output_folder, "downloaded")
+    dl_file, headers = urllib.request.urlretrieve(url, dl_path, DownloadBar())
+    if not dl_file:
+        print(f"Téléchargement échoué.", file=sys.stderr)
+    return dl_file
+
 # Chargement des données
-def load_data(url):
-    print("Chargement du fichier de carte...", file=sys.stderr)
-    layer = QgsVectorLayer(url, "communes", "ogr")
+def load_data(url, cache, folder, file):
+    print("Recherche des données...", file=sys.stderr)  
+    data_file = find_file(cache, folder, file)
+    if not data_file:
+        print(f"Chemin non trouvé : {folder}/{file}", file=sys.stderr)
+        print(f"Téléchargement des données...", file=sys.stderr)
+        archive_file = download_file(url, cache)
+        if not archive_file:
+            return NULL
+        archive = py7zr.SevenZipFile(archive_file, mode='r')
+        archive.extractall(path=cache)
+        archive.close()
+        data_file = find_file(cache, folder, file)
+        if not data_file:
+            print(f"Chemin non trouvé : {folder}/{file}", file=sys.stderr)
+            return NULL
+
+    print("Chargement du fichier de carte...", file=sys.stderr) 
+    layer = QgsVectorLayer(data_file, "communes", "ogr")
     return layer if layer.hasFeatures() else NULL
 
 if __name__ == '__main__':
     # Lire le fichier de configuration
     config = configparser.ConfigParser()
     config.read('config.ini')
-    url = config.get('source', 'url')
+    cache_path = config.get('global', 'cache_path')
+    folder_name = config.get('map_data', 'folder')
+    file_name = config.get('map_data', 'file')
+    url = config.get('map_data', 'url')
 
     # Initialiser une app QGIS
     APP = QgsApplication([], False)
     QgsApplication.initQgis()
 
     # Charger la couche de communes/IRIS françaises
-    COMMUNES = load_data(url)
+    COMMUNES = load_data(url, cache_path, folder_name, file_name)
     if not COMMUNES:
-        print(f"Erreur au chargement des données : {url}", file=sys.stderr)
+        print(f"Erreur au chargement des données de carte.", file=sys.stderr)
         sys.exit(1)
 
     # Lancement de l'app Tornado
