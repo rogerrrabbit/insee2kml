@@ -2,6 +2,8 @@ import re
 import os
 import random
 import string
+import configparser
+from PyQt5.QtCore import QVariant
 from qgis.core import *
 from qgis.utils import *
 import tornado.ioloop
@@ -9,26 +11,24 @@ import tornado.web
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-# Initialiser une application QGIS
-APP = QgsApplication([], False)
-QgsApplication.initQgis()
-
-# Charger la couche de communes françaises au format KML
-print("Chargement du fichier de carte...", file=sys.stderr)
-COMMUNES = QgsVectorLayer("./FRANCE_METRO_IRIS.kml", "communes", "ogr")
+COMMUNES = NULL
 
 def get_random_string(length):
     return ''.join(random.choice(string.ascii_letters) for i in range(length))
 
 def copy_and_alter_layer(layer):
-    copy = QgsVectorLayer("MultiPolygon?crs=EPSG:4326", "copy", "memory")
-    copy_dp = copy.dataProvider()
-    fields = layer.fields()
-    copy_dp.addAttributes(fields)
+    #RGF93 v1 / Lambert-93 / EPSG:2154
+    copy = QgsVectorLayer("MultiPolygon?crs=EPSG:2154", "copy", "memory")
     copy.startEditing()
+    copy_dp = copy.dataProvider()
+    fields = QgsFields()
+    fields.append(QgsField("name", QVariant.String))
+    copy_dp.addAttributes(fields)
     for feature in layer.selectedFeatures():
-        feature["name"] = feature["NOM_IRIS"]
-        copy_dp.addFeatures([feature])
+        copy_fet = QgsFeature(fields)
+        copy_fet.setAttribute('name', feature["NOM_IRIS"])
+        copy_fet.setGeometry(feature.geometry())
+        copy_dp.addFeatures([copy_fet])
     copy.commitChanges()
     return copy
 
@@ -132,6 +132,29 @@ class MainHandler(tornado.web.RequestHandler):
             </html>
         ''')
 
+# Fonction pour récupérer les codes INSEE d'une ville donnée
+def get_insee_codes(name):
+    # Récupérer les codes INSEE de la ville à partir de son nom
+    # Retourne une liste de codes INSEE
+
+    print(f"Recherche de {name}...", file=sys.stderr)
+    
+    # Try with exact match (but not case sensitive)
+    expression = "\"NOM_COM\" ILIKE '{}'".format(escape_expression_qgis(name))
+    features = list(COMMUNES.getFeatures(QgsFeatureRequest().setFilterExpression(expression)))
+    if not features:
+        # Try harder (characters before and after)
+        expression = "\"NOM_COM\" ILIKE '%{}%'".format(escape_expression_qgis(name))
+        features = list(COMMUNES.getFeatures(QgsFeatureRequest().setFilterExpression(expression)))
+    
+    # Liste des codes communes obtenus (sans doublon)    
+    codes_commune = list(set(f["INSEE_COM"] for f in features))
+
+    if len(codes_commune) == 0:
+        print(f"Aucune commune trouvée pour le nom '{name}'", file=sys.stderr)
+
+    return codes_commune
+
 # Fonction pour traiter le formulaire soumis par l'utilisateur
 class GenerateHandler(tornado.web.RequestHandler):
     def post(self):
@@ -168,24 +191,6 @@ class GenerateHandler(tornado.web.RequestHandler):
         os.remove(kml_file)
         self.finish()
 
-# Fonction pour récupérer les codes INSEE d'une ville donnée
-def get_insee_codes(name):
-    # Récupérer les codes INSEE de la ville à partir de son nom
-    # Retourne une liste de codes INSEE
-
-    print(f"Recherche de {name}...", file=sys.stderr)
-    expression = "\"Name\" ILIKE '{}'".format(escape_expression_qgis(name))
-    features = list(COMMUNES.getFeatures(QgsFeatureRequest().setFilterExpression(expression)))
-    if not features:
-        expression = "\"Name\" ILIKE '%{}%'".format(escape_expression_qgis(name))
-        features = list(COMMUNES.getFeatures(QgsFeatureRequest().setFilterExpression(expression)))
-    codes_commune = list(set(f["INSEE_COM"] for f in features))
-
-    if len(codes_commune) == 0:
-        print(f"Aucune commune trouvée pour le nom '{name}'", file=sys.stderr)
-
-    return codes_commune
-
 # Configuration de l'application Tornado
 def make_app():
     return tornado.web.Application([
@@ -194,7 +199,29 @@ def make_app():
         (r'/(favicon.ico)', tornado.web.StaticFileHandler, {"path": ""}),
     ])
 
+# Chargement des données
+def load_data(url):
+    print("Chargement du fichier de carte...", file=sys.stderr)
+    layer = QgsVectorLayer(url, "communes", "ogr")
+    return layer if layer.hasFeatures() else NULL
+
 if __name__ == '__main__':
+    # Lire le fichier de configuration
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    url = config.get('source', 'url')
+
+    # Initialiser une app QGIS
+    APP = QgsApplication([], False)
+    QgsApplication.initQgis()
+
+    # Charger la couche de communes/IRIS françaises
+    COMMUNES = load_data(url)
+    if not COMMUNES:
+        print(f"Erreur au chargement des données : {url}", file=sys.stderr)
+        sys.exit(1)
+
+    # Lancement de l'app Tornado
     app = make_app()
     app.listen(8888)
     print("Prêt.", file=sys.stderr)
