@@ -1,0 +1,31 @@
+<html>
+    <head>
+        <title>{{ title }}</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.2.2/ol.css">
+        <link rel="stylesheet" href="./style.css">
+        <script src="https://cdn.jsdelivr.net/npm/ol@7.2.2/dist/ol.js"></script>
+    </head>
+    <body>
+        <div id="map"></div>
+        <div id="formulaire">
+            <img alt="" src="https://portail.trela.fr/javascript/bundles/assets/img/logo_header.png" style="height:50px; width:98px"/>
+            <form>
+                <br>
+                <label>
+                    Entrez des codes INSEE, séparés par des espaces :
+                    <input type="text" name="insee_codes">
+                </label>
+                <br><br>
+                <label>
+                    Ou entrez le nom d'une ville :
+                    <input type="text" name="ville_name">
+                </label>
+                <br><br>
+            </form>
+            <button id="add-layer">Générer la zone</button>
+            <button id="download-kml" disabled="true">Télécharger en tant que KML...</button>
+        </div>
+        <script src="./main.js"></script>
+    </body>
+</html>
