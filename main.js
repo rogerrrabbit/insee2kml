@@ -1,22 +1,87 @@
 var selectedLayer = null;
-//var KML = null;
+var selectedFeatures = [];
+var newSearch = false;
 
-var positron = new ol.layer.Tile({
+var loadButton = document.getElementById('add-layer');
+var downloadKMLButton = document.getElementById('download-kml');
+var statusSpan = document.getElementById('status');
+var resultsTile = document.getElementById('results');
+
+const jawgToken = 'C4idbYUcLlbPNEG6ZontRKymqfMcJLjLYEGrhjKQXakcRlpsSibbLjJTiz8zXJCD'
+const baseMap = new ol.layer.Tile({
     source: new ol.source.XYZ({
-        url: 'https://{1-4}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
+        url: 'https://a.tile.jawg.io/jawg-light/{z}/{x}/{y}.png?access-token=' + jawgToken
     })
 });
 
 var map = new ol.Map({
     target: 'map',
-    layers: [positron],
+    layers: [baseMap],
     view: new ol.View({
-        center: ol.proj.fromLonLat([2.35183, 48.85658]), // Coordonnées de Paris
-        zoom: 6, // Zoom par défaut
+        center: ol.proj.fromLonLat([4.35183, 48.85658]),
+        zoom: 6,
     })
 });
 
-var downloadKMLButton = document.getElementById('download-kml');
+// Fin du chargement de la carte
+map.on("loadend", function() {
+    map.getTargetElement().classList.remove('spinner');
+    if (!newSearch) {
+        return;
+    }
+
+    // Fin du chargement de la zone
+    if(selectedLayer) {
+        selectedFeatures = selectedLayer.getSource().getFeatures();
+        resultsTile.style.display = 'inherit';
+        if (selectedFeatures.length) {
+            map.getView().fit(selectedLayer.getSource().getExtent(),
+            {
+                size: map.getSize(),
+                padding: [150, 600, 150, 150],
+                maxZoom: 16,
+                duration: 1000,
+            });
+            statusSpan.innerHTML = "🎉 Trouvé ! "+ selectedFeatures.length + ' secteur(s)';
+            downloadKMLButton.style.display = 'inherit';
+        } else {
+            statusSpan.innerHTML = "🙀 Pas de résultat !";
+        }
+    }
+
+    newSearch = false;
+});
+
+// Soumettre des codes ou nom de ville et récupérer une zone
+function getLayer() {
+    const inseeCodes = document.querySelector('input[name="insee_codes"]').value;
+    const villeName = document.querySelector('input[name="ville_name"]').value;
+
+    /* Remove previously selected layer if any */
+    if (selectedLayer != null) {
+        map.removeLayer(selectedLayer);
+    }
+
+    selectedLayer = new ol.layer.Vector({
+        source: new ol.source.Vector({
+            url: "/generate?insee_codes=" + inseeCodes + "&ville_name=" + villeName,
+            format: new ol.format.KML()
+        }),
+    });
+
+    newSearch = true;
+    downloadKMLButton.style.display = 'none';
+    resultsTile.style.display = 'none';
+    map.addLayer(selectedLayer);
+    map.getTargetElement().classList.add('spinner');
+
+    // Return false to prevent the form from reloading the page
+    return false;
+}
+
+// Télécharger la zone obtenue
+// FIXME: en cas de innerBoundary, génère les tags innerBoundaryIs et outerBoundaryIs dans le mauvais ordre (inner first)
+// Pas standard, et pas compatible avec One.
 downloadKMLButton.addEventListener('click', function() {
     if (selectedLayer != null) {
         var kmlFormat = new ol.format.KML({
@@ -28,7 +93,7 @@ downloadKMLButton.addEventListener('click', function() {
         var kml = kmlFormat.writeFeatures(
             features,
             {
-                dataProjection : 'EPSG:4326', 
+                dataProjection : 'EPSG:4326',
                 featureProjection : 'EPSG:3857',
                 decimals: 6
             });
@@ -42,69 +107,6 @@ downloadKMLButton.addEventListener('click', function() {
         element.click();
         document.body.removeChild(element);
     } else {
-        window.alert("no layer");
+        window.alert("error: no layer");
     }
-});
-
-var loadButton = document.getElementById('add-layer');
-loadButton.addEventListener('click', function() {
-    const inseeCodes = document.querySelector('input[name="insee_codes"]').value;
-    const villeName = document.querySelector('input[name="ville_name"]').value;
-    
-    /* Remove previously selected layer if any */
-    if (selectedLayer != null) {
-        map.removeLayer(selectedLayer);
-        KML = null;
-    }
-
-    /* Retrieve and save KML data for selected codes/city */
-    /*var req = new XMLHttpRequest;
-    req.open('get', "/generate?insee_codes=" + inseeCodes + "&ville_name=" + villeName, true);
-    req.responseType = 'application/vnd.google-earth.kml+xml';
-    req.send();
-    req.onreadystatechange = function() {
-        if (this.readyState == 4 && this.status == 200) {
-            KML = this.response;
-        } else {
-            window.alert("Not found!");
-        }
-    };*/
-
-    /* Make a layer from KML data */
-    /*var features = new ol.format.KML().readFeatures(KML, { dataProjection: 'EPSG:4326' });
-    var KMLvectorSource = new ol.source.Vector({});
-
-    var KMLvector = new ol.layer.Vector({
-        source: KMLvectorSource,
-        visible: true
-        });
-    
-    KMLvectorSource.addFeature(features);*/
-
-    selectedLayer = new ol.layer.Vector({
-        source: new ol.source.Vector({
-            url: "/generate?insee_codes=" + inseeCodes + "&ville_name=" + villeName,
-            format: new ol.format.KML()
-        }),
-    });
-    map.getTargetElement().classList.add('spinner');
-
-    map.on("loadstart", function() {
-        downloadKMLButton.disabled = true;
-    });
-
-    map.on("loadend", function() {
-        map.getTargetElement().classList.remove('spinner');
-        map.getView().fit(selectedLayer.getSource().getExtent(),
-            {
-                size: map.getSize(),
-                padding: [50, 0, 50, 0],
-                maxZoom: 16,
-            }
-        );
-        downloadKMLButton.disabled = false;
-    });
-
-    map.addLayer(selectedLayer);
-    //map.addLayer(KMLvectorSource);
 });

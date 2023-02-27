@@ -8,23 +8,29 @@
     </head>
     <body>
         <div id="map"></div>
-        <div id="formulaire">
-            <img alt="" src="https://portail.trela.fr/javascript/bundles/assets/img/logo_header.png" style="height:50px; width:98px"/>
-            <form>
-                <br>
-                <label>
-                    Entrez des codes INSEE, séparés par des espaces :
-                    <input type="text" name="insee_codes">
-                </label>
+        <div class="control">
+            <div class="tile">
+                <img alt="" src="https://portail.trela.fr/javascript/bundles/assets/img/logo_header.png" style="height:50px; width:98px"/>
+                <form onsubmit="return getLayer();">
+                    <br>
+                    <label>
+                        Entrez des codes INSEE :
+                        <input type="text" name="insee_codes">
+                    </label>
+                    <br><br>
+                    <label>
+                        Ou entrez le nom d'une ville :
+                        <input type="text" name="ville_name">
+                    </label>
+                    <br><br>
+                    <button type='submit' id="add-layer">Générer la zone</button>
+                </form>
+            </div>
+            <div class="tile" id="results">
+                <span id="status"></span>
                 <br><br>
-                <label>
-                    Ou entrez le nom d'une ville :
-                    <input type="text" name="ville_name">
-                </label>
-                <br><br>
-            </form>
-            <button id="add-layer">Générer la zone</button>
-            <button id="download-kml" disabled="true">Télécharger en tant que KML...</button>
+                <button type='button' id="download-kml">Télécharger</button>
+            </div>
         </div>
         <script src="./main.js"></script>
     </body>

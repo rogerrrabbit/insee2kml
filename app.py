@@ -33,14 +33,15 @@ def select_features(layer):
     copy.startEditing()
     copy_dp = copy.dataProvider()
     fields = QgsFields()
+
+    # Enregistrement d'un nouvel attribut "name" afin de générer la
+    # balise "<name>" des placemarks (KML)
     fields.append(QgsField("name", QVariant.String))
+
     copy_dp.addAttributes(fields)
 
     for feature in layer.selectedFeatures():
         copy_fet = QgsFeature(fields)
-
-        # Enregistrement d'un nouvel attribut "name" afin de générer la
-        # balise "<name>" des placemarks (KML)
         copy_fet.setAttribute('name', feature["NOM_IRIS"])
 
         copy_fet.setGeometry(feature.geometry())
@@ -51,7 +52,7 @@ def select_features(layer):
 
 # Ecrire un KML sur disque à partir de codes communes INSEE
 # Le nom du fichier est choisi aléatoirement
-def make_kml(codes_commune):
+def write_kml(codes_commune):
     # Générer le fichier KML en utilisant la saisie de l'utilisateur
     # Retourne le chemin d'accès au fichier KML généré
     filename = get_random_string(5) + ".kml"
@@ -77,17 +78,12 @@ def make_kml(codes_commune):
 
     return filename
 
-# Page d'accueil du site avec un formulaire pour saisir les codes INSEE ou le nom de ville
-class MainHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.render("template.html", title="INSEE2KML")
-
-# Fonction pour récupérer les codes INSEE d'une ville donnée
+# Récupérer les codes INSEE d'une ville donnée
 def get_insee_codes(name):
     # Récupérer les codes INSEE de la ville à partir de son nom
     # Retourne une liste de codes INSEE
     print(f"Recherche de {name}...", file=sys.stderr)
-    
+
     # Try with exact match (but not case sensitive)
     expression = "\"NOM_COM\" ILIKE '{}'".format(escape_expression_qgis(name))
     features = list(COMMUNES.getFeatures(QgsFeatureRequest().setFilterExpression(expression)))
@@ -95,8 +91,8 @@ def get_insee_codes(name):
         # Try harder (characters before and after)
         expression = "\"NOM_COM\" ILIKE '%{}%'".format(escape_expression_qgis(name))
         features = list(COMMUNES.getFeatures(QgsFeatureRequest().setFilterExpression(expression)))
-    
-    # Liste des codes communes obtenus (sans doublon)    
+
+    # Liste des codes communes obtenus (sans doublon)
     codes_commune = list(set(f["INSEE_COM"] for f in features))
 
     if len(codes_commune) == 0:
@@ -104,7 +100,7 @@ def get_insee_codes(name):
 
     return codes_commune
 
-# Fonction pour traiter le formulaire soumis par l'utilisateur
+# Générer un fichier KML et le retourner
 class GenerateHandler(tornado.web.RequestHandler):
     def get(self):
         # Récupère la saisie de l'utilisateur
@@ -117,14 +113,14 @@ class GenerateHandler(tornado.web.RequestHandler):
 
         # Vérifie si l'utilisateur a saisi des codes INSEE ou le nom d'une ville
         if insee_codes:
-            codes = insee_codes.split()
+            codes = insee_codes.replace(",", " ").split()
             # Appelle la fonction pour générer le fichier KML à partir des codes INSEE
-            kml_file = make_kml(codes)
+            kml_file = write_kml(codes)
         elif ville_name:
             # Appelle la fonction pour récupérer les codes INSEE de la ville
             codes = get_insee_codes(ville_name)
             # Appelle la fonction pour générer le fichier KML à partir des codes INSEE
-            kml_file = make_kml(codes)
+            kml_file = write_kml(codes)
         else:
             self.finish()
             return
@@ -140,6 +136,11 @@ class GenerateHandler(tornado.web.RequestHandler):
             os.remove(kml_file)
 
         self.finish()
+
+# Page d'accueil du site
+class MainHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.render("template.html", title="INSEE2KML")
 
 class DownloadBar():
     def __init__(self):
@@ -182,7 +183,7 @@ def download_file(url, output_folder):
 
 # Chargement des données
 def load_data(url, cache, folder, file):
-    print("Recherche des données...", file=sys.stderr)  
+    print("Recherche des données...", file=sys.stderr)
     data_file = find_file(cache, folder, file)
     if not data_file:
         print(f"Chemin non trouvé : {folder}/{file}", file=sys.stderr)
@@ -198,7 +199,7 @@ def load_data(url, cache, folder, file):
             print(f"Chemin non trouvé : {folder}/{file}", file=sys.stderr)
             return NULL
 
-    print("Chargement du fichier de carte...", file=sys.stderr) 
+    print("Chargement du fichier de carte...", file=sys.stderr)
     layer = QgsVectorLayer(data_file, "communes", "ogr")
     return layer if layer.hasFeatures() else NULL
 
