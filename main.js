@@ -2,25 +2,88 @@ var selectedLayer = null;
 var selectedFeatures = [];
 var newSearch = false;
 
-var loadButton = document.getElementById('add-layer');
-var downloadKMLButton = document.getElementById('download-kml');
-var statusSpan = document.getElementById('status');
-var resultsTile = document.getElementById('results');
+const searchButton = document.getElementById('search-zone');
+const downloadKMLButton = document.getElementById('download-kml');
+const statusSpan = document.getElementById('status');
+const resultsTile = document.getElementById('results');
+const tooltip = document.getElementById('placemark-tooltip');
+const inseeCodes = document.getElementById("insee-codes");
+const villeName = document.getElementById("ville-name");
 
-const jawgToken = 'C4idbYUcLlbPNEG6ZontRKymqfMcJLjLYEGrhjKQXakcRlpsSibbLjJTiz8zXJCD'
-const baseMap = new ol.layer.Tile({
-    source: new ol.source.XYZ({
-        url: 'https://a.tile.jawg.io/jawg-light/{z}/{x}/{y}.png?access-token=' + jawgToken
-    })
-});
-
-var map = new ol.Map({
+const map = new ol.Map({
     target: 'map',
-    layers: [baseMap],
+    layers: [new ol.layer.Tile({
+        source: new ol.source.Stamen({
+            layer: "toner-lite"
+        })
+    })],
     view: new ol.View({
         center: ol.proj.fromLonLat([4.35183, 48.85658]),
         zoom: 6,
     })
+});
+
+inseeCodes.addEventListener('input', checkFields);
+villeName.addEventListener('input', checkFields);
+
+// Activer/désactiver le bouton de recherche
+function checkFields() {
+    if (inseeCodes.value.trim() !== "" || villeName.value.trim() !== "") {
+        searchButton.disabled = false;
+    } else {
+        searchButton.disabled = true;
+    }
+}
+
+const unselectedStyle = new ol.style.Style({
+    fill: new ol.style.Fill({
+        color: 'rgba(35, 158, 170, 0.25)',
+    }),
+    stroke: new ol.style.Stroke({
+        color: 'rgba(35, 158, 170, 1)',
+        width: 3,
+    })
+})
+
+const selectedStyle = new ol.style.Style({
+    fill: new ol.style.Fill({
+      color: 'rgba(35, 158, 170, 0.75)',
+    }),
+    stroke: new ol.style.Stroke({
+        color: 'rgba(35, 158, 170, 1)',
+        width: 3,
+    })
+});
+
+// Tooltip au survol sur les placemarks
+let hoveredFeature = null;
+map.on('pointermove', function (evt) {
+    if (hoveredFeature !== null) {
+        hoveredFeature.setStyle(unselectedStyle);
+        hoveredFeature = null;
+      }
+
+    map.forEachFeatureAtPixel(evt.pixel, function (feature) {
+        hoveredFeature = feature;
+        return true;
+    });
+
+    if (hoveredFeature) {
+        var featureName = hoveredFeature.get('name');
+        if (featureName) {
+            // Afficher le nom de la feature dans une div
+            tooltip.innerHTML = featureName;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (evt.originalEvent.pageX + 15) + 'px';
+            tooltip.style.top = (evt.originalEvent.pageY + 15) + 'px';
+
+            // Appliquer un style sur la géométrie
+            hoveredFeature.setStyle(selectedStyle);
+        }
+    } else {
+        // Cacher la div s'il n'y a pas de feature sous le curseur
+        tooltip.style.display = 'none';
+    }
 });
 
 // Fin du chargement de la carte
@@ -34,7 +97,9 @@ map.on("loadend", function() {
     if(selectedLayer) {
         selectedFeatures = selectedLayer.getSource().getFeatures();
         resultsTile.style.display = 'inherit';
+
         if (selectedFeatures.length) {
+            // Fitter la fenêtre sur les features résultantes
             map.getView().fit(selectedLayer.getSource().getExtent(),
             {
                 size: map.getSize(),
@@ -42,10 +107,11 @@ map.on("loadend", function() {
                 maxZoom: 16,
                 duration: 1000,
             });
+
             statusSpan.innerHTML = "🎉 Trouvé ! "+ selectedFeatures.length + ' secteur(s)';
             downloadKMLButton.style.display = 'inherit';
         } else {
-            statusSpan.innerHTML = "🙀 Pas de résultat !";
+            statusSpan.innerHTML = "🦖 Pas de résultat !";
         }
     }
 
@@ -54,24 +120,25 @@ map.on("loadend", function() {
 
 // Soumettre des codes ou nom de ville et récupérer une zone
 function getLayer() {
-    const inseeCodes = document.querySelector('input[name="insee_codes"]').value;
-    const villeName = document.querySelector('input[name="ville_name"]').value;
-
     /* Remove previously selected layer if any */
     if (selectedLayer != null) {
         map.removeLayer(selectedLayer);
     }
 
+    // Nouvelle zone
     selectedLayer = new ol.layer.Vector({
         source: new ol.source.Vector({
-            url: "/generate?insee_codes=" + inseeCodes + "&ville_name=" + villeName,
-            format: new ol.format.KML()
+            url: "/generate?insee_codes=" + inseeCodes.value + "&ville_name=" + villeName.value,
+            format: new ol.format.GeoJSON()
         }),
+        style: unselectedStyle
     });
 
     newSearch = true;
     downloadKMLButton.style.display = 'none';
     resultsTile.style.display = 'none';
+
+    // Dessiner la zone
     map.addLayer(selectedLayer);
     map.getTargetElement().classList.add('spinner');
 

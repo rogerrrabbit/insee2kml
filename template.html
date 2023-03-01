@@ -5,33 +5,37 @@
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.2.2/ol.css">
         <link rel="stylesheet" href="./style.css">
         <script src="https://cdn.jsdelivr.net/npm/ol@7.2.2/dist/ol.js"></script>
+        <script type="text/javascript" src="https://stamen-maps.a.ssl.fastly.net/js/tile.stamen.js?v1.3.0"></script>
     </head>
     <body>
         <div id="map"></div>
         <div class="control">
             <div class="tile">
-                <img alt="" src="https://portail.trela.fr/javascript/bundles/assets/img/logo_header.png" style="height:50px; width:98px"/>
+                <a href="https://www.trela.co/fr/" target="_blank">
+                    <img id="logo" src="https://portail.trela.fr/javascript/bundles/assets/img/logo_header.png"/>
+                </a>
                 <form onsubmit="return getLayer();">
                     <br>
                     <label>
                         Entrez des codes INSEE :
-                        <input type="text" name="insee_codes">
+                        <input type="text" name="insee_codes" id="insee-codes">
                     </label>
                     <br><br>
                     <label>
                         Ou entrez le nom d'une ville :
-                        <input type="text" name="ville_name">
+                        <input type="text" name="ville_name" id="ville-name">
                     </label>
                     <br><br>
-                    <button type='submit' id="add-layer">Générer la zone</button>
+                    <button type='submit' id="search-zone" disabled>Rechercher la zone</button>
                 </form>
             </div>
             <div class="tile" id="results">
                 <span id="status"></span>
                 <br><br>
-                <button type='button' id="download-kml">Télécharger</button>
+                <button type='button' id="download-kml">Télécharger le fichier KML</button>
             </div>
         </div>
+        <div id="placemark-tooltip" class="tooltip"></div>
         <script src="./main.js"></script>
     </body>
 </html>

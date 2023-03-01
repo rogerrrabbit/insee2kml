@@ -15,9 +15,9 @@ import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 COMMUNES = NULL
-
-CRS_IN  = "EPSG:2154" #RGF93 v1 / Lambert-93 (France Métropolitaine)
-CRS_OUT = "EPSG:3857" #Pseudo-mercator / WGS84
+OUTPUT_FORMAT = NULL
+CRS_IN  = NULL
+CRS_OUT = NULL
 
 def get_random_string(length):
     # Chaîne de caractères alpha aléatoires
@@ -50,12 +50,12 @@ def select_features(layer):
     copy.commitChanges()
     return copy
 
-# Ecrire un KML sur disque à partir de codes communes INSEE
+# Ecrire un fichier de zone sur disque à partir de codes communes INSEE
 # Le nom du fichier est choisi aléatoirement
-def write_kml(codes_commune):
-    # Générer le fichier KML en utilisant la saisie de l'utilisateur
-    # Retourne le chemin d'accès au fichier KML généré
-    filename = get_random_string(5) + ".kml"
+def write_zone(codes_commune, format):
+    # Générer le fichier de zone en utilisant la saisie de l'utilisateur
+    # Retourne le chemin d'accès au fichier de zone généré
+    filename = get_random_string(5) + "." + format.lower()
 
     # Sélectionner les lieux correspondant aux codes de commune
     print(f"Sélection des communes ({len(codes_commune)})...", file=sys.stderr)
@@ -67,12 +67,12 @@ def write_kml(codes_commune):
     print(f"Création des secteurs ({COMMUNES.selectedFeatureCount()})...", file=sys.stderr)
     selection = select_features(COMMUNES)
 
-    # Exporter la sélection au format KML
+    # Exporter la sélection
     print(f"Ecriture dans {filename}...", file=sys.stderr)
     crs_out = QgsCoordinateReferenceSystem(CRS_OUT)
     error = QgsVectorFileWriter.writeAsVectorFormat(selection, filename,
                                                     "UTF-8", crs_out,
-                                                    "KML", False)
+                                                    format, False)
     if error[0] != QgsVectorFileWriter.NoError:
         return NULL
 
@@ -100,7 +100,7 @@ def get_insee_codes(name):
 
     return codes_commune
 
-# Générer un fichier KML et le retourner
+# Générer un fichier de zone et le retourner
 class GenerateHandler(tornado.web.RequestHandler):
     def get(self):
         # Récupère la saisie de l'utilisateur
@@ -109,31 +109,31 @@ class GenerateHandler(tornado.web.RequestHandler):
 
         # En-têtes de réponse
         self.set_header('Content-Type', 'application/octet-stream')
-        self.set_header('Content-Disposition', 'attachment; filename="generated.kml"')
+        self.set_header('Content-Disposition', 'attachment; filename="generated"')
 
         # Vérifie si l'utilisateur a saisi des codes INSEE ou le nom d'une ville
         if insee_codes:
             codes = insee_codes.replace(",", " ").split()
-            # Appelle la fonction pour générer le fichier KML à partir des codes INSEE
-            kml_file = write_kml(codes)
+            # Appelle la fonction pour générer le fichier de zone à partir des codes INSEE
+            zone_file = write_zone(codes, OUTPUT_FORMAT)
         elif ville_name:
             # Appelle la fonction pour récupérer les codes INSEE de la ville
             codes = get_insee_codes(ville_name)
-            # Appelle la fonction pour générer le fichier KML à partir des codes INSEE
-            kml_file = write_kml(codes)
+            # Appelle la fonction pour générer le fichier de zone à partir des codes INSEE
+            zone_file = write_zone(codes, OUTPUT_FORMAT)
         else:
             self.finish()
             return
 
-        # Télécharge le fichier KML
-        if kml_file and os.path.isfile(kml_file):
-            with open(kml_file, 'rb') as f:
+        # Télécharge le fichier de zone
+        if zone_file and os.path.isfile(zone_file):
+            with open(zone_file, 'rb') as f:
                 while True:
                     data = f.read(4096)
                     if not data:
                         break
                     self.write(data)
-            os.remove(kml_file)
+            os.remove(zone_file)
 
         self.finish()
 
@@ -204,14 +204,18 @@ def load_data(url, cache, folder, file):
     return layer if layer.hasFeatures() else NULL
 
 if __name__ == '__main__':
-    # Lire le fichier de configuration
     config = configparser.ConfigParser()
     config.read('config.ini')
+
+    OUTPUT_FORMAT = config.get('global', 'output_format')
+    CRS_OUT = config.get('global', 'output_crs')
+    CRS_IN = config.get('map_data', 'crs')
+    
     cache_path = config.get('global', 'cache_path')
     folder_name = config.get('map_data', 'folder')
     file_name = config.get('map_data', 'file')
     url = config.get('map_data', 'url')
-
+    
     # Initialiser une app QGIS
     APP = QgsApplication([], False)
     QgsApplication.initQgis()
