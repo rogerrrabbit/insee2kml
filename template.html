@@ -13,7 +13,7 @@
                 <a href="https://www.trela.co/fr/" target="_blank">
                     <img id="logo" src="https://portail.trela.fr/javascript/bundles/assets/img/logo_header.png"/>
                 </a>
-                <form onsubmit="return getLayer();">
+                <form onsubmit="return searchLayer();">
                     <br>
                     <label>
                         Entrez des codes INSEE :
@@ -31,7 +31,13 @@
             <div class="tile" id="results">
                 <span id="status"></span>
                 <br><br>
-                <button type='button' id="download-kml">Télécharger le fichier KML</button>
+                <div id="commune-selector-block">
+                    <select id="commune-selector-select"></select>
+                    <br><br>
+                </div>
+                <div id="download-kml-block">
+                    <button type='button' id="download-kml-button">Télécharger la zone sous forme de fichier KML</button>
+                </div>
             </div>
         </div>
         <div id="placemark-tooltip" class="tooltip"></div>

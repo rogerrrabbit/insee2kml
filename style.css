@@ -28,7 +28,11 @@ form {
     font-size: larger;
 }
 
-#download-kml {
+#download-kml-block {
+    display:none;
+}
+
+#commune-selector-block {
     display:none;
 }
 

@@ -37,13 +37,17 @@ def select_features(layer):
     # Enregistrement d'un nouvel attribut "name" afin de générer la
     # balise "<name>" des placemarks (KML)
     fields.append(QgsField("name", QVariant.String))
+    fields.append(QgsField("insee_commune", QVariant.String))
+    fields.append(QgsField("nom_commune", QVariant.String))
 
     copy_dp.addAttributes(fields)
 
     for feature in layer.selectedFeatures():
         copy_fet = QgsFeature(fields)
+        copy_fet.setAttributes(feature.attributes())
         copy_fet.setAttribute('name', feature["NOM_IRIS"])
-
+        copy_fet.setAttribute('insee_commune', feature["INSEE_COM"])
+        copy_fet.setAttribute('nom_commune', feature["NOM_COM"])
         copy_fet.setGeometry(feature.geometry())
         copy_dp.addFeatures([copy_fet])
 
@@ -210,12 +214,12 @@ if __name__ == '__main__':
     OUTPUT_FORMAT = config.get('global', 'output_format')
     CRS_OUT = config.get('global', 'output_crs')
     CRS_IN = config.get('map_data', 'crs')
-    
+
     cache_path = config.get('global', 'cache_path')
     folder_name = config.get('map_data', 'folder')
     file_name = config.get('map_data', 'file')
     url = config.get('map_data', 'url')
-    
+
     # Initialiser une app QGIS
     APP = QgsApplication([], False)
     QgsApplication.initQgis()

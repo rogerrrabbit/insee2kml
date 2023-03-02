@@ -1,14 +1,16 @@
 var selectedLayer = null;
-var selectedFeatures = [];
 var newSearch = false;
 
 const searchButton = document.getElementById('search-zone');
-const downloadKMLButton = document.getElementById('download-kml');
+const downloadKMLButton = document.getElementById('download-kml-button');
+const downloadKML = document.getElementById('download-kml-block');
 const statusSpan = document.getElementById('status');
 const resultsTile = document.getElementById('results');
 const tooltip = document.getElementById('placemark-tooltip');
 const inseeCodes = document.getElementById("insee-codes");
 const villeName = document.getElementById("ville-name");
+const communeSelectorSelect = document.getElementById("commune-selector-select");
+const communeSelector = document.getElementById("commune-selector-block");
 
 const map = new ol.Map({
     target: 'map',
@@ -25,14 +27,25 @@ const map = new ol.Map({
 
 inseeCodes.addEventListener('input', checkFields);
 villeName.addEventListener('input', checkFields);
+communeSelectorSelect.addEventListener('input', checkSelect);
+
+function checkSelect() {
+    if (communeSelectorSelect.value == 0) {
+        return searchLayer();
+    } else {
+        return getLayer(communeSelectorSelect.value, "");
+    }
+}
 
 // Activer/désactiver le bouton de recherche
 function checkFields() {
     if (inseeCodes.value.trim() !== "" || villeName.value.trim() !== "") {
         searchButton.disabled = false;
-    } else {
-        searchButton.disabled = true;
+        return true;
     }
+
+    searchButton.disabled = true;
+    return false;
 }
 
 const unselectedStyle = new ol.style.Style({
@@ -86,19 +99,23 @@ map.on('pointermove', function (evt) {
     }
 });
 
-// Fin du chargement de la carte
+// Fin du (re)chargement de la carte
 map.on("loadend", function() {
     map.getTargetElement().classList.remove('spinner');
+
+    // Fin d'une nouvelle recherche uniquement
     if (!newSearch) {
         return;
     }
 
-    // Fin du chargement de la zone
+    // La recherche a fonctionné
     if(selectedLayer) {
         selectedFeatures = selectedLayer.getSource().getFeatures();
         resultsTile.style.display = 'inherit';
 
+        // La recherche a abouti (au moins 1 feature)
         if (selectedFeatures.length) {
+
             // Fitter la fenêtre sur les features résultantes
             map.getView().fit(selectedLayer.getSource().getExtent(),
             {
@@ -108,8 +125,33 @@ map.on("loadend", function() {
                 duration: 1000,
             });
 
+            // Parcours des features et groupement par communes
+            let uniqueCommunes = new Map();
+            selectedFeatures.forEach(feature => uniqueCommunes.set(
+                feature.get('insee_commune'),
+                feature.get('nom_commune')
+            ));
+
             statusSpan.innerHTML = "🎉 Trouvé ! "+ selectedFeatures.length + ' secteur(s)';
-            downloadKMLButton.style.display = 'inherit';
+            downloadKML.style.display = 'inherit';
+
+
+            if (uniqueCommunes.size > 1) {
+                communeSelectorSelect.innerHTML = '<option value="0">'+ uniqueCommunes.size + ' communes</option>';
+
+                // Parcourir les éléments de la Map
+                uniqueCommunes.forEach((value, key) => {
+                    // Créer une option pour chaque élément
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.text = value + ' (' + key + ')';
+
+                    // Ajouter l'option à la liste déroulante
+                    communeSelectorSelect.add(option);
+                    communeSelector.style.display = 'inherit';
+                });
+            }
+
         } else {
             statusSpan.innerHTML = "🦖 Pas de résultat !";
         }
@@ -119,7 +161,7 @@ map.on("loadend", function() {
 });
 
 // Soumettre des codes ou nom de ville et récupérer une zone
-function getLayer() {
+function getLayer(codes, ville) {
     /* Remove previously selected layer if any */
     if (selectedLayer != null) {
         map.removeLayer(selectedLayer);
@@ -128,14 +170,14 @@ function getLayer() {
     // Nouvelle zone
     selectedLayer = new ol.layer.Vector({
         source: new ol.source.Vector({
-            url: "/generate?insee_codes=" + inseeCodes.value + "&ville_name=" + villeName.value,
+            url: "/generate?insee_codes=" + codes + "&ville_name=" + ville,
             format: new ol.format.GeoJSON()
         }),
         style: unselectedStyle
     });
 
     newSearch = true;
-    downloadKMLButton.style.display = 'none';
+    downloadKML.style.display = 'none';
     resultsTile.style.display = 'none';
 
     // Dessiner la zone
@@ -144,6 +186,11 @@ function getLayer() {
 
     // Return false to prevent the form from reloading the page
     return false;
+}
+
+function searchLayer() {
+    communeSelector.style.display = 'none';
+    return getLayer(inseeCodes.value, villeName.value);
 }
 
 // Télécharger la zone obtenue
