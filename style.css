@@ -24,15 +24,15 @@ form {
 }
 
 #results {
+    border-color: var(--primary-color);
+}
+
+#results, #commune-selector-block {
     display: none;
     font-size: larger;
 }
 
-#download-kml-block {
-    display:none;
-}
-
-#commune-selector-block {
+#download-block {
     display:none;
 }
 
@@ -52,11 +52,12 @@ form {
 
 .tile {
     background-color: #ffffff;
+    border-radius: 10px;
     border-style: solid;
-    border-width: 3px;
-    border-color: var(--primary-color);
-    margin-bottom: 20px;
+    border-color:  #ffffff;
+    margin-bottom: 10px;
     padding: 20px;
+    box-shadow: 0px 0px 10px #aaa;
 }
 
 @keyframes spinner {

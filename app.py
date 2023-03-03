@@ -16,7 +16,6 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 COMMUNES = NULL
 OUTPUT_FORMAT = NULL
-CRS_IN  = NULL
 CRS_OUT = NULL
 
 def get_random_string(length):
@@ -28,10 +27,10 @@ def escape_expression_qgis(s):
     return re.sub(r'[^a-zA-Z]+', '_', s.replace(' ', '_'))
 
 # Extraire les features sélectionnées au sein d'une layer vers une nouvelle layer
-def select_features(layer):
-    copy = QgsVectorLayer("MultiPolygon?crs=" + CRS_IN, "copy", "memory")
-    copy.startEditing()
-    copy_dp = copy.dataProvider()
+def select_features(source):
+    destination = QgsVectorLayer("MultiPolygon?crs=" + source.crs().authid(), "copy", "memory")
+    destination.startEditing()
+    destination_dp = destination.dataProvider()
     fields = QgsFields()
 
     # Enregistrement d'un nouvel attribut "name" afin de générer la
@@ -40,19 +39,19 @@ def select_features(layer):
     fields.append(QgsField("insee_commune", QVariant.String))
     fields.append(QgsField("nom_commune", QVariant.String))
 
-    copy_dp.addAttributes(fields)
+    destination_dp.addAttributes(fields)
 
-    for feature in layer.selectedFeatures():
-        copy_fet = QgsFeature(fields)
-        copy_fet.setAttributes(feature.attributes())
-        copy_fet.setAttribute('name', feature["NOM_IRIS"])
-        copy_fet.setAttribute('insee_commune', feature["INSEE_COM"])
-        copy_fet.setAttribute('nom_commune', feature["NOM_COM"])
-        copy_fet.setGeometry(feature.geometry())
-        copy_dp.addFeatures([copy_fet])
+    for feature in source.selectedFeatures():
+        destination_fet = QgsFeature(fields)
+        destination_fet.setAttributes(feature.attributes())
+        destination_fet.setAttribute('name', feature["NOM_IRIS"])
+        destination_fet.setAttribute('insee_commune', feature["INSEE_COM"])
+        destination_fet.setAttribute('nom_commune', feature["NOM_COM"])
+        destination_fet.setGeometry(feature.geometry())
+        destination_dp.addFeatures([destination_fet])
 
-    copy.commitChanges()
-    return copy
+    destination.commitChanges()
+    return destination
 
 # Ecrire un fichier de zone sur disque à partir de codes communes INSEE
 # Le nom du fichier est choisi aléatoirement
@@ -139,8 +138,6 @@ class GenerateHandler(tornado.web.RequestHandler):
                     self.write(data)
             os.remove(zone_file)
 
-        self.finish()
-
 # Page d'accueil du site
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -213,7 +210,6 @@ if __name__ == '__main__':
 
     OUTPUT_FORMAT = config.get('global', 'output_format')
     CRS_OUT = config.get('global', 'output_crs')
-    CRS_IN = config.get('map_data', 'crs')
 
     cache_path = config.get('global', 'cache_path')
     folder_name = config.get('map_data', 'folder')

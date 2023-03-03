@@ -15,28 +15,28 @@
                 </a>
                 <form onsubmit="return searchLayer();">
                     <br>
-                    <label>
-                        Entrez des codes INSEE :
-                        <input type="text" name="insee_codes" id="insee-codes">
-                    </label>
+                    <label>Entrez des codes INSEE :</label>
+                    <input type="text" name="insee_codes" id="insee-codes">
                     <br><br>
-                    <label>
-                        Ou entrez le nom d'une ville :
-                        <input type="text" name="ville_name" id="ville-name">
-                    </label>
+                    <label>Ou entrez le nom d'une commune :</label>
+                    <input type="text" name="ville_name" id="ville-name">
                     <br><br>
                     <button type='submit' id="search-zone" disabled>Rechercher la zone</button>
+                    <input type="file" id="file-input">
                 </form>
+            </div>
+            <div class="tile" id="commune-selector-block">
+                <span>🙀 Plusieurs communes trouvées</span>
+                <br><br>
+                <div>
+                    <select id="commune-selector-select"></select>
+                </div>
             </div>
             <div class="tile" id="results">
                 <span id="status"></span>
                 <br><br>
-                <div id="commune-selector-block">
-                    <select id="commune-selector-select"></select>
-                    <br><br>
-                </div>
-                <div id="download-kml-block">
-                    <button type='button' id="download-kml-button">Télécharger la zone sous forme de fichier KML</button>
+                <div id="download-block">
+                    <button type='button' id="download-button">Télécharger la zone au format KML</button>
                 </div>
             </div>
         </div>

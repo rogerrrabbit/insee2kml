@@ -2,8 +2,8 @@ var selectedLayer = null;
 var newSearch = false;
 
 const searchButton = document.getElementById('search-zone');
-const downloadKMLButton = document.getElementById('download-kml-button');
-const downloadKML = document.getElementById('download-kml-block');
+const downloadZoneButton = document.getElementById('download-button');
+const downloadZone = document.getElementById('download-block');
 const statusSpan = document.getElementById('status');
 const resultsTile = document.getElementById('results');
 const tooltip = document.getElementById('placemark-tooltip');
@@ -132,9 +132,8 @@ map.on("loadend", function() {
                 feature.get('nom_commune')
             ));
 
-            statusSpan.innerHTML = "🎉 Trouvé ! "+ selectedFeatures.length + ' secteur(s)';
-            downloadKML.style.display = 'inherit';
-
+            statusSpan.innerHTML = "💾 "+ selectedFeatures.length + ' secteur(s)';
+            downloadZone.style.display = 'inherit';
 
             if (uniqueCommunes.size > 1) {
                 communeSelectorSelect.innerHTML = '<option value="0">'+ uniqueCommunes.size + ' communes</option>';
@@ -177,7 +176,7 @@ function getLayer(codes, ville) {
     });
 
     newSearch = true;
-    downloadKML.style.display = 'none';
+    downloadZone.style.display = 'none';
     resultsTile.style.display = 'none';
 
     // Dessiner la zone
@@ -196,7 +195,7 @@ function searchLayer() {
 // Télécharger la zone obtenue
 // FIXME: en cas de innerBoundary, génère les tags innerBoundaryIs et outerBoundaryIs dans le mauvais ordre (inner first)
 // Pas standard, et pas compatible avec One.
-downloadKMLButton.addEventListener('click', function() {
+downloadZoneButton.addEventListener('click', function() {
     if (selectedLayer != null) {
         var kmlFormat = new ol.format.KML({
             extractStyles: false,
