@@ -1,5 +1,7 @@
 :root {
-    --primary-color: #239EAA;
+    --primary-color: rgb(35, 158, 170);
+    --secondary-color: rgb(167, 211, 42);
+    --danger-color: rgb(35, 158, 170);
 }
 
 body {
@@ -23,20 +25,15 @@ form {
     height: 100%;
 }
 
-#results {
+#carto-vecto-surface_hydrographique {
     border-color: var(--primary-color);
 }
 
-#results, #commune-selector-block {
-    display: none;
-    font-size: larger;
+#zone-habilitation-div {
+    border-color: var(--secondary-color);
 }
 
-#download-block {
-    display:none;
-}
-
-.tooltip {
+#tooltip {
     position: absolute;
     display: none;
     padding: 2px 2px;
@@ -59,6 +56,24 @@ form {
     padding: 20px;
     box-shadow: 0px 0px 10px #aaa;
 }
+
+.results {
+    display: none;
+    font-size: larger;
+    animation-name: fade-in;
+    animation-duration: 1s;
+}
+
+@keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(-100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 
 @keyframes spinner {
     to {

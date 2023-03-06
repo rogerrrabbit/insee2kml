@@ -1,43 +1,28 @@
-var selectedLayer = null;
 var newSearch = false;
+var newFeatures = false;
 
-const searchButton = document.getElementById('search-zone');
-const downloadZoneButton = document.getElementById('download-button');
-const downloadZone = document.getElementById('download-block');
-const statusSpan = document.getElementById('status');
-const resultsTile = document.getElementById('results');
-const tooltip = document.getElementById('placemark-tooltip');
+const zoneHabilitationDiv = document.getElementById('zone-habilitation-div');
+const zoneHabilitationSpan = document.getElementById("zone-habilitation-span");
+const resultsDiv = document.getElementById("results-div");
+const resultsSpan = document.getElementById('results-span');
 const inseeCodes = document.getElementById("insee-codes");
 const villeName = document.getElementById("ville-name");
-const communeSelectorSelect = document.getElementById("commune-selector-select");
-const communeSelector = document.getElementById("commune-selector-block");
+const communeSelectionSelect = document.getElementById("commune-selection-select");
+const communeSelection = document.getElementById("commune-selection");
 
-const map = new ol.Map({
-    target: 'map',
-    layers: [new ol.layer.Tile({
-        source: new ol.source.Stamen({
-            layer: "toner-lite"
-        })
-    })],
-    view: new ol.View({
-        center: ol.proj.fromLonLat([4.35183, 48.85658]),
-        zoom: 6,
-    })
-});
+const cartoVectoDiv = document.getElementById('carto-vecto-surface_hydrographique');
+const cartoVectoSpan = document.getElementById("carto-vecto-surface_hydrographique-span");
 
 inseeCodes.addEventListener('input', checkFields);
 villeName.addEventListener('input', checkFields);
-communeSelectorSelect.addEventListener('input', checkSelect);
+communeSelectionSelect.addEventListener('input', checkSelect);
 
-function checkSelect() {
-    if (communeSelectorSelect.value == 0) {
-        return searchLayer();
-    } else {
-        return getLayer(communeSelectorSelect.value, "");
-    }
-}
+// Chargement de la carto
+let map = new MapView();
+let surfaceHydro = new CartoVecto(map, 'BDCARTO_BDD_WLD_WGS84G:surface_hydrographique');
 
-// Activer/désactiver le bouton de recherche
+// Vérification de la saisie
+const searchButton = document.getElementById('search-zone');
 function checkFields() {
     if (inseeCodes.value.trim() !== "" || villeName.value.trim() !== "") {
         searchButton.disabled = false;
@@ -48,178 +33,184 @@ function checkFields() {
     return false;
 }
 
-const unselectedStyle = new ol.style.Style({
-    fill: new ol.style.Fill({
-        color: 'rgba(35, 158, 170, 0.25)',
-    }),
-    stroke: new ol.style.Stroke({
-        color: 'rgba(35, 158, 170, 1)',
-        width: 3,
-    })
-})
-
-const selectedStyle = new ol.style.Style({
-    fill: new ol.style.Fill({
-      color: 'rgba(35, 158, 170, 0.75)',
-    }),
-    stroke: new ol.style.Stroke({
-        color: 'rgba(35, 158, 170, 1)',
-        width: 3,
-    })
-});
-
-// Tooltip au survol sur les placemarks
-let hoveredFeature = null;
-map.on('pointermove', function (evt) {
-    if (hoveredFeature !== null) {
-        hoveredFeature.setStyle(unselectedStyle);
-        hoveredFeature = null;
-      }
-
-    map.forEachFeatureAtPixel(evt.pixel, function (feature) {
-        hoveredFeature = feature;
-        return true;
-    });
-
-    if (hoveredFeature) {
-        var featureName = hoveredFeature.get('name');
-        if (featureName) {
-            // Afficher le nom de la feature dans une div
-            tooltip.innerHTML = featureName;
-            tooltip.style.display = 'block';
-            tooltip.style.left = (evt.originalEvent.pageX + 15) + 'px';
-            tooltip.style.top = (evt.originalEvent.pageY + 15) + 'px';
-
-            // Appliquer un style sur la géométrie
-            hoveredFeature.setStyle(selectedStyle);
-        }
+// Changement de valeur du sélecteur de communes
+function checkSelect() {
+    if (communeSelectionSelect.value == 0) {
+        return resetAndSubmit(inseeCodes.value, villeName.value);
     } else {
-        // Cacher la div s'il n'y a pas de feature sous le curseur
-        tooltip.style.display = 'none';
+        return generate(communeSelectionSelect.value, "");
     }
-});
+}
 
-// Fin du (re)chargement de la carte
-map.on("loadend", function() {
-    map.getTargetElement().classList.remove('spinner');
+// Affichage des résultats de recherche
+function displayResultsTile(selectedFeatures) {
+    resultsDiv.style.display = 'inherit';
+    let uniqueCommunes = new Map();
 
-    // Fin d'une nouvelle recherche uniquement
+    // Parcours des features et groupement par communes
+    selectedFeatures.forEach(feature => uniqueCommunes.set(
+        feature.get('insee_commune'),
+        feature.get('nom_commune')
+    ));
+
+    if (uniqueCommunes.size > 1) {
+        resultsSpan.innerHTML = "🎯 " + uniqueCommunes.size + " communes";
+        communeSelection.style.display = 'inherit';
+        communeSelectionSelect.innerHTML = '<option value="0">--Toutes les communes--</option>';
+
+        // Parcourir les éléments de la Map
+        uniqueCommunes.forEach((value, key) => {
+            // Créer une option pour chaque élément
+            const option = document.createElement('option');
+            option.value = key;
+            option.text = value + ' (' + key + ')';
+
+            // Ajouter l'option à la liste déroulante
+            communeSelectionSelect.add(option);
+        });
+
+    } else if (uniqueCommunes.size == 1) {
+        resultsSpan.innerHTML = '🏛️ ' +
+                                selectedFeatures[0].get("nom_commune") +
+                                ' (' +
+                                selectedFeatures[0].get("insee_commune") +
+                                ')'
+
+    } else {
+        resultsSpan.innerHTML = "🦖 Pas de résultat !";
+    }
+}
+
+function displayZoneHabilitationTile(features) {
+    if (features.length) {
+        zoneHabilitationDiv.style.display = 'inherit';
+        zoneHabilitationSpan.innerHTML = "🌐 Zone d'habilitation : "+ features.length + ' secteur(s)';
+    }
+}
+
+function displayCartoVectoTile(features) {
+    if (features.length) {
+        cartoVectoDiv.style.display = 'inherit';
+        cartoVectoSpan.innerHTML = "➕ Surfaces hydrographiques : "+ features.length + " ";
+        if (features.length == CartoVecto.maxFeatureCount) {
+            cartoVectoSpan.innerHTML += 'secteurs (⚠️tronqué)';
+        } else {
+            cartoVectoSpan.innerHTML += 'secteur(s))';
+        }
+    }
+}
+
+function refreshSearchResults() {
     if (!newSearch) {
         return;
     }
 
-    // La recherche a fonctionné
-    if(selectedLayer) {
-        selectedFeatures = selectedLayer.getSource().getFeatures();
-        resultsTile.style.display = 'inherit';
+    // Afficher les résultats
+    let selectedFeatures = map.getFeatures();
+    displayResultsTile(selectedFeatures);
 
-        // La recherche a abouti (au moins 1 feature)
-        if (selectedFeatures.length) {
+    // La recherche a abouti (au moins 1 feature)
+    if (selectedFeatures.length) {
+        // Fitter la fenêtre sur les features résultantes
+        map.fit();
 
-            // Fitter la fenêtre sur les features résultantes
-            map.getView().fit(selectedLayer.getSource().getExtent(),
-            {
-                size: map.getSize(),
-                padding: [150, 600, 150, 150],
-                maxZoom: 16,
-                duration: 1000,
-            });
+        // Charger les données des layers additionnelles
+        surfaceHydro.setExtent(map.layer.getSource().getExtent());
 
-            // Parcours des features et groupement par communes
-            let uniqueCommunes = new Map();
-            selectedFeatures.forEach(feature => uniqueCommunes.set(
-                feature.get('insee_commune'),
-                feature.get('nom_commune')
-            ));
+        // Afficher les tuiles de téléchargement de zones
+        displayZoneHabilitationTile(selectedFeatures);
 
-            statusSpan.innerHTML = "💾 "+ selectedFeatures.length + ' secteur(s)';
-            downloadZone.style.display = 'inherit';
-
-            if (uniqueCommunes.size > 1) {
-                communeSelectorSelect.innerHTML = '<option value="0">'+ uniqueCommunes.size + ' communes</option>';
-
-                // Parcourir les éléments de la Map
-                uniqueCommunes.forEach((value, key) => {
-                    // Créer une option pour chaque élément
-                    const option = document.createElement('option');
-                    option.value = key;
-                    option.text = value + ' (' + key + ')';
-
-                    // Ajouter l'option à la liste déroulante
-                    communeSelectorSelect.add(option);
-                    communeSelector.style.display = 'inherit';
-                });
-            }
-
-        } else {
-            statusSpan.innerHTML = "🦖 Pas de résultat !";
-        }
+        newFeatures = true;
     }
 
     newSearch = false;
-});
+}
 
-// Soumettre des codes ou nom de ville et récupérer une zone
-function getLayer(codes, ville) {
-    /* Remove previously selected layer if any */
-    if (selectedLayer != null) {
-        map.removeLayer(selectedLayer);
+function refreshAdditionalLayers() {
+    // Fin d'une nouvelle recherche uniquement
+    if (!newFeatures) {
+        return;
     }
 
-    // Nouvelle zone
-    selectedLayer = new ol.layer.Vector({
-        source: new ol.source.Vector({
-            url: "/generate?insee_codes=" + codes + "&ville_name=" + ville,
-            format: new ol.format.GeoJSON()
-        }),
-        style: unselectedStyle
-    });
+    let cartoVectoFeatures = surfaceHydro.getFeatures();
+    displayCartoVectoTile(cartoVectoFeatures);
+
+    newFeatures = false;
+}
+
+map.onLoadEnd(refreshAdditionalLayers);
+map.onLoadEnd(refreshSearchResults);
+
+// Demander les secteurs associés à une ou plusieurs communes
+function generate(codes, ville) {
+    // Reset zone download tiles
+    zoneHabilitationDiv.style.display = 'none';
+    cartoVectoDiv.style.display = 'none';
+
+    map.requestLayer(
+        "/generate?insee_codes=" + codes + "&ville_name=" + ville,
+        new ol.format.GeoJSON()
+    );
 
     newSearch = true;
-    downloadZone.style.display = 'none';
-    resultsTile.style.display = 'none';
+}
 
-    // Dessiner la zone
-    map.addLayer(selectedLayer);
-    map.getTargetElement().classList.add('spinner');
+// Nouvelle recherche de commune(s)
+function resetAndSubmit(codes, ville) {
+    // Reset result tiles
+    resultsDiv.style.display = 'none';
+    communeSelection.style.display = 'none';
+
+    // Generate new zone
+    generate(codes, ville);
 
     // Return false to prevent the form from reloading the page
     return false;
 }
 
-function searchLayer() {
-    communeSelector.style.display = 'none';
-    return getLayer(inseeCodes.value, villeName.value);
-}
-
-// Télécharger la zone obtenue
 // FIXME: en cas de innerBoundary, génère les tags innerBoundaryIs et outerBoundaryIs dans le mauvais ordre (inner first)
 // Pas standard, et pas compatible avec One.
-downloadZoneButton.addEventListener('click', function() {
-    if (selectedLayer != null) {
-        var kmlFormat = new ol.format.KML({
-            extractStyles: false,
-            writeStyles: false
+function featuresToKML(features) {
+    var kmlFormat = new ol.format.KML({
+        extractStyles: false,
+        writeStyles: false
+    });
+
+    var kml = kmlFormat.writeFeatures(
+        features,
+        {
+            dataProjection : 'EPSG:4326',
+            featureProjection : 'EPSG:3857',
+            decimals: 6
         });
 
-        var features = selectedLayer.getSource().getFeatures();
-        var kml = kmlFormat.writeFeatures(
-            features,
-            {
-                dataProjection : 'EPSG:4326',
-                featureProjection : 'EPSG:3857',
-                decimals: 6
-            });
-        var contentType = 'data:application/vnd.google-earth.kml+xml;charset=utf-8';
+    return kml;
+}
 
-        var element = document.createElement('a');
-        element.setAttribute('href', contentType + ',' + encodeURIComponent(kml));
-        element.setAttribute('download', "output.kml");
-        element.style.display = 'none';
-        document.body.appendChild(element);
-        element.click();
-        document.body.removeChild(element);
-    } else {
-        window.alert("error: no layer");
-    }
+// Télécharger le fichier KML
+function downloadAsKML(data) {
+    var contentType = 'data:application/vnd.google-earth.kml+xml;charset=utf-8';
+
+    var element = document.createElement('a');
+
+    element.setAttribute('href', contentType + ',' + encodeURIComponent(data));
+    element.setAttribute('download', "output.kml");
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+}
+
+// Télécharger la zone d'habilitation
+const downloadZoneButton = document.getElementById('download-zone-button');
+downloadZoneButton.addEventListener('click', function() {
+    var kml = featuresToKML(map.layer.getSource().getFeatures());
+    downloadAsKML(kml);
+});
+
+// Télécharger une zone additionnelle
+const downloadVectoButton = document.getElementById('download-surface_hydrographique-button');
+downloadVectoButton.addEventListener('click', function() {
+    var kml = featuresToKML(surfaceHydro.layer.getSource().getFeatures());
+    downloadAsKML(kml);
 });

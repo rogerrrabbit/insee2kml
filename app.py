@@ -163,9 +163,12 @@ def make_app():
     return tornado.web.Application([
         (r'/', MainHandler),
         (r'/generate', GenerateHandler),
+        (r'/(logo_header.png)', tornado.web.StaticFileHandler, {"path": ""}),
         (r'/(favicon.ico)', tornado.web.StaticFileHandler, {"path": ""}),
         (r'/(style.css)', tornado.web.StaticFileHandler, {"path": ""}),
         (r'/(main.js)', tornado.web.StaticFileHandler, {"path": ""}),
+        (r'/(cartovecto.js)', tornado.web.StaticFileHandler, {"path": ""}),
+        (r'/(mapview.js)', tornado.web.StaticFileHandler, {"path": ""}),
     ])
 
 # Recherche du fichier de données
