@@ -1,7 +1,7 @@
 :root {
     --primary-color: rgb(35, 158, 170);
     --secondary-color: rgb(167, 211, 42);
-    --danger-color: rgb(35, 158, 170);
+    --danger-color: rgb(156, 25, 143, 1);
 }
 
 body {
@@ -23,14 +23,6 @@ form {
 #map {
     width: 100%;
     height: 100%;
-}
-
-#carto-vecto-surface_hydrographique {
-    border-color: var(--primary-color);
-}
-
-#zone-habilitation-div {
-    border-color: var(--secondary-color);
 }
 
 #tooltip {
@@ -62,6 +54,22 @@ form {
     font-size: larger;
     animation-name: fade-in;
     animation-duration: 1s;
+}
+
+.main-layer {
+    border-color: var(--secondary-color);
+}
+
+.additional-layer {
+    border-color: var(--primary-color);
+}
+
+.theme-water {
+    border-color: var(--primary-color);
+}
+
+.theme-danger {
+    border-color: var(--danger-color);
 }
 
 @keyframes fade-in {

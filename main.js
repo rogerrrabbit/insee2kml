@@ -10,8 +10,11 @@ const villeName = document.getElementById("ville-name");
 const communeSelectionSelect = document.getElementById("commune-selection-select");
 const communeSelection = document.getElementById("commune-selection");
 
-const cartoVectoDiv = document.getElementById('carto-vecto-surface_hydrographique');
-const cartoVectoSpan = document.getElementById("carto-vecto-surface_hydrographique-span");
+const cartoVectoSurfaceHydroDiv = document.getElementById('carto-vecto-surface_hydrographique');
+const cartoVectoSurfaceHydroSpan = document.getElementById("carto-vecto-surface_hydrographique-span");
+
+const cartoVectoSitesPolluesDiv = document.getElementById('carto-vecto-sites_pollues');
+const cartoVectoSitesPolluesSpan = document.getElementById("carto-vecto-sites_pollues-span");
 
 inseeCodes.addEventListener('input', checkFields);
 villeName.addEventListener('input', checkFields);
@@ -19,7 +22,26 @@ communeSelectionSelect.addEventListener('input', checkSelect);
 
 // Chargement de la carto
 let map = new MapView();
-let surfaceHydro = new CartoVecto(map, 'BDCARTO_BDD_WLD_WGS84G:surface_hydrographique');
+
+let surfaceHydro = new CartoVecto(
+    map,
+    'https://wxs.ign.fr/cartovecto/geoportail/wfs',
+    'BDCARTO_BDD_WLD_WGS84G:surface_hydrographique',
+    MapView.blueStyle);
+
+let sitesPollues = new CartoVecto(
+    map,
+    'https://georisques.gouv.fr/services',
+    'SSP_INSTR_GE_POLYGONE',
+    MapView.dangertyle);
+
+// Sites pollués ou potentiellement pollués appelant une action des pouvoirs publics, à titre préventif ou curatif (BASOL) ms:SSP_INSTR_GE_POLYGONE
+// Aléa débordement cours d'eau fréquent France Métro ms:ALEA_SYNT_01_01FOR_FXX
+// Aléa ruissellement fréquent France Métro ms:ALEA_SYNT_02_01FOR_FXX
+// Aléa submersion fréquent France Métro ms:ALEA_SYNT_03_01FOR_FXX
+// Retrait-gonflement des argiles France Métro ms:ALEARG_REALISE
+// Zones de sur-aléa inondation France Métro ms:OUV_ZONSALEA_FXX
+
 
 // Vérification de la saisie
 const searchButton = document.getElementById('search-zone');
@@ -84,18 +106,30 @@ function displayResultsTile(selectedFeatures) {
 function displayZoneHabilitationTile(features) {
     if (features.length) {
         zoneHabilitationDiv.style.display = 'inherit';
-        zoneHabilitationSpan.innerHTML = "🌐 Zone d'habilitation : "+ features.length + ' secteur(s)';
+        zoneHabilitationSpan.innerHTML = features.length + ' secteur(s)';
     }
 }
 
-function displayCartoVectoTile(features) {
+function displayCartoVectoSurfaceHydroTile(features) {
     if (features.length) {
-        cartoVectoDiv.style.display = 'inherit';
-        cartoVectoSpan.innerHTML = "➕ Surfaces hydrographiques : "+ features.length + " ";
+        cartoVectoSurfaceHydroDiv.style.display = 'inherit';
+        cartoVectoSurfaceHydroSpan.innerHTML = features.length + " ";
         if (features.length == CartoVecto.maxFeatureCount) {
-            cartoVectoSpan.innerHTML += 'secteurs (⚠️tronqué)';
+            cartoVectoSurfaceHydroSpan.innerHTML += 'secteurs (⚠️tronqué)';
         } else {
-            cartoVectoSpan.innerHTML += 'secteur(s))';
+            cartoVectoSurfaceHydroSpan.innerHTML += 'secteur(s))';
+        }
+    }
+}
+
+function displayCartoVectoSitesPolluesTile(features) {
+    if (features.length) {
+        cartoVectoSitesPolluesDiv.style.display = 'inherit';
+        cartoVectoSitesPolluesSpan.innerHTML = features.length + " ";
+        if (features.length == CartoVecto.maxFeatureCount) {
+            cartoVectoSitesPolluesSpan.innerHTML += 'secteurs (⚠️tronqué)';
+        } else {
+            cartoVectoSitesPolluesSpan.innerHTML += 'secteur(s))';
         }
     }
 }
@@ -116,6 +150,7 @@ function refreshSearchResults() {
 
         // Charger les données des layers additionnelles
         surfaceHydro.setExtent(map.layer.getSource().getExtent());
+        sitesPollues.setExtent(map.layer.getSource().getExtent());
 
         // Afficher les tuiles de téléchargement de zones
         displayZoneHabilitationTile(selectedFeatures);
@@ -132,8 +167,8 @@ function refreshAdditionalLayers() {
         return;
     }
 
-    let cartoVectoFeatures = surfaceHydro.getFeatures();
-    displayCartoVectoTile(cartoVectoFeatures);
+    displayCartoVectoSurfaceHydroTile(surfaceHydro.getFeatures());
+    displayCartoVectoSitesPolluesTile(sitesPollues.getFeatures());
 
     newFeatures = false;
 }
@@ -145,7 +180,8 @@ map.onLoadEnd(refreshSearchResults);
 function generate(codes, ville) {
     // Reset zone download tiles
     zoneHabilitationDiv.style.display = 'none';
-    cartoVectoDiv.style.display = 'none';
+    cartoVectoSurfaceHydroDiv.style.display = 'none';
+    cartoVectoSitesPolluesDiv.style.display = 'none';
 
     map.requestLayer(
         "/generate?insee_codes=" + codes + "&ville_name=" + ville,
@@ -209,8 +245,15 @@ downloadZoneButton.addEventListener('click', function() {
 });
 
 // Télécharger une zone additionnelle
-const downloadVectoButton = document.getElementById('download-surface_hydrographique-button');
-downloadVectoButton.addEventListener('click', function() {
+const downloadSurfaceHydroButton = document.getElementById('download-surface_hydrographique-button');
+downloadSurfaceHydroButton.addEventListener('click', function() {
     var kml = featuresToKML(surfaceHydro.layer.getSource().getFeatures());
+    downloadAsKML(kml);
+});
+
+// Télécharger une zone additionnelle
+const downloadSitesPolluesButton = document.getElementById('download-sites_pollues-button');
+downloadSitesPolluesButton.addEventListener('click', function() {
+    var kml = featuresToKML(sitesPollues.layer.getSource().getFeatures());
     downloadAsKML(kml);
 });

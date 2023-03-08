@@ -33,6 +33,45 @@ class MapView {
             width: 3,
         })
     });
+    static dangertyle = new ol.style.Style({
+        fill: new ol.style.Fill({
+            color: 'rgba(156, 25, 143, 0.15)',
+        }),
+        stroke: new ol.style.Stroke({
+            color: 'rgba(156, 25, 143, 1)',
+            width: 3,
+        })
+    });
+
+    #olMap;
+    #olLayer;
+    #olLayerFeatures;
+    #hoveredFeature;
+    #tooltipDiv;
+
+    constructor() {
+        let olMap = new ol.Map({
+            target: 'map',
+            layers: [new ol.layer.Tile({
+                source: new ol.source.Stamen({
+                    layer: MapView.#basemapStyle
+                })
+            })],
+            view: new ol.View({
+                center: ol.proj.fromLonLat(MapView.#basemapCenter),
+                zoom: MapView.#basemapZoomLevel,
+            })
+        });
+
+        this.#olMap = olMap;
+        this.#olLayer = null;
+        this.#olLayerFeatures = [];
+        this.#hoveredFeature = null;
+        this.#tooltipDiv = document.getElementById('tooltip');
+
+        this.onPointerMove(this.#mouseOverPlacemark);
+        this.onLoadEnd(this.#mapLoadEnd);
+    }
 
     get map () {
         return this.#olMap;
@@ -88,12 +127,6 @@ class MapView {
         this.#olMap.on("pointermove", moveFunction);
     }
 
-    #olMap;
-    #olLayer;
-    #olLayerFeatures;
-    #hoveredFeature = null;
-    #tooltipDiv = document.getElementById('tooltip');
-
     // Mise en valeur du placemark + tooltip
     #mouseOverPlacemark = (evt) => {
         if (this.#hoveredFeature !== null) {
@@ -134,27 +167,5 @@ class MapView {
         if (this.#olLayer) {
             this.#olLayerFeatures = this.#olLayer.getSource().getFeatures();
         }
-    }
-
-    constructor() {
-        let olMap = new ol.Map({
-            target: 'map',
-            layers: [new ol.layer.Tile({
-                source: new ol.source.Stamen({
-                    layer: MapView.#basemapStyle
-                })
-            })],
-            view: new ol.View({
-                center: ol.proj.fromLonLat(MapView.#basemapCenter),
-                zoom: MapView.#basemapZoomLevel,
-            })
-        });
-
-        this.#olMap = olMap;
-        this.#olLayer = null;
-        this.#olLayerFeatures = [];
-
-        this.onPointerMove(this.#mouseOverPlacemark);
-        this.onLoadEnd(this.#mapLoadEnd);
     }
 }
