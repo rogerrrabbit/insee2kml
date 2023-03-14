@@ -6,64 +6,23 @@
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.3.0/ol.css">
         <link rel="stylesheet" href="./style.css">
         <script src="https://cdn.jsdelivr.net/npm/ol@7.3.0/dist/ol.js"></script>
-        <!--<script src="https://unpkg.com/vue@3.2.29/dist/vue.global.js"></script>-->
+        <script src="https://unpkg.com/vue@3.2.29/dist/vue.global.js"></script>
         <script src="./mapview.js"></script>
-        <script src="./cartovecto.js"></script>
+        <script src="./app.js"></script>
+        <script src="./vectorlayer.js"></script>
     </head>
     <body>
         <div id="map"></div>
         <div id="tooltip"></div>
+
         <div class="control">
-            <div class="tile">
-                <a href="https://www.trela.co/fr/" target="_blank">
-                    <img alt="Trela" id="logo" src="./logo_header.png"/>
-                </a>
-                <form onsubmit="return resetAndSubmit(inseeCodes.value, villeName.value);">
-                    <br>
-                    <label>Entrez des codes INSEE :</label>
-                    <input type="text" name="insee_codes" id="insee-codes">
-                    <br><br>
-                    <label>Ou le nom d'une commune :</label>
-                    <input type="text" name="ville_name" id="ville-name">
-                    <br><br>
-                    <button type='submit' id="search-zone" disabled>Rechercher</button>
-                </form>
-            </div>
-            <div class="tile results" id="results-div">
-                <span id="results-span"></span>
-                <div id="commune-selection">
-                    <br>
-                    <select title="Communes" id="commune-selection-select"></select>
-                </div>
-            </div>
-            <div class="tile results main-layer" id="zone-habilitation-div">
-                <span>🌐 Zone d'habilitation :</span>
-                <span id="zone-habilitation-span"></span>
-                <br><br>
-                <div>
-                    <button type='button' id="download-zone-button">Télécharger au format KML</button>
-                </div>
-            </div>
-            <div class="tile results additional-layers theme-water" id="carto-vecto-surface_hydrographique">
-                <!--Surfaces hydrographiques (BD CARTO version 21.1)-->
-                <span>🚿 Surfaces hydrographiques :</span>
-                <span id="carto-vecto-surface_hydrographique-span"></span>
-                <br><br>
-                <div>
-                    <button type='button' id="download-surface_hydrographique-button">Télécharger au format KML</button>
-                </div>
-            </div>
-            <div class="tile results additional-layers theme-danger" id="carto-vecto-sites_pollues">
-                <!--Sites pollués ou potentiellement pollués appelant une action des pouvoirs publics, à titre préventif ou curatif (BASOL)-->
-                <span>☢️ Sites pollués :</span>
-                <span id="carto-vecto-sites_pollues-span"></span>
-                <br><br>
-                <div>
-                    <button type='button' id="download-sites_pollues-button">Télécharger au format KML</button>
-                </div>
-            </div>
+            <div id="app"></div>
         </div>
-        <script src="./main.js">
+
+        <script>
+            const mountedApp = app.mount('#app');
         </script>
+
+        <script src="./main.js"></script>
     </body>
 </html>

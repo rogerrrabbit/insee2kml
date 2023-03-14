@@ -1,6 +1,3 @@
-var newSearch = false;
-var newFeatures = false;
-
 const zoneHabilitationDiv = document.getElementById('zone-habilitation-div');
 const zoneHabilitationSpan = document.getElementById("zone-habilitation-span");
 const resultsDiv = document.getElementById("results-div");
@@ -10,30 +7,27 @@ const villeName = document.getElementById("ville-name");
 const communeSelectionSelect = document.getElementById("commune-selection-select");
 const communeSelection = document.getElementById("commune-selection");
 
-const cartoVectoSurfaceHydroDiv = document.getElementById('carto-vecto-surface_hydrographique');
-const cartoVectoSurfaceHydroSpan = document.getElementById("carto-vecto-surface_hydrographique-span");
+//const cartoVectoSurfaceHydroDiv = document.getElementById('carto-vecto-surface_hydrographique');
+//const cartoVectoSurfaceHydroSpan = document.getElementById("carto-vecto-surface_hydrographique-span");
 
-const cartoVectoSitesPolluesDiv = document.getElementById('carto-vecto-sites_pollues');
-const cartoVectoSitesPolluesSpan = document.getElementById("carto-vecto-sites_pollues-span");
+//const cartoVectoSitesPolluesDiv = document.getElementById('carto-vecto-sites_pollues');
+//const cartoVectoSitesPolluesSpan = document.getElementById("carto-vecto-sites_pollues-span");
 
 inseeCodes.addEventListener('input', checkFields);
 villeName.addEventListener('input', checkFields);
 communeSelectionSelect.addEventListener('input', checkSelect);
 
-// Chargement de la carto
-let map = new MapView();
-
-let surfaceHydro = new CartoVecto(
-    map,
+/*let surfaceHydro = new CartoVecto(
+    mountedApp.olMap,
     'https://wxs.ign.fr/cartovecto/geoportail/wfs',
     'BDCARTO_BDD_WLD_WGS84G:surface_hydrographique',
-    MapView.blueStyle);
+    MapView.blueStyle);*/
 
-let sitesPollues = new CartoVecto(
-    map,
+/*let sitesPollues = new CartoVecto(
+    mountedApp.olMap,
     'https://georisques.gouv.fr/services',
     'SSP_INSTR_GE_POLYGONE',
-    MapView.dangertyle);
+    MapView.dangerStyle);*/
 
 // Sites pollués ou potentiellement pollués appelant une action des pouvoirs publics, à titre préventif ou curatif (BASOL) ms:SSP_INSTR_GE_POLYGONE
 // Aléa débordement cours d'eau fréquent France Métro ms:ALEA_SYNT_01_01FOR_FXX
@@ -110,85 +104,58 @@ function displayZoneHabilitationTile(features) {
     }
 }
 
-function displayCartoVectoSurfaceHydroTile(features) {
-    if (features.length) {
-        cartoVectoSurfaceHydroDiv.style.display = 'inherit';
-        cartoVectoSurfaceHydroSpan.innerHTML = features.length + " ";
-        if (features.length == CartoVecto.maxFeatureCount) {
-            cartoVectoSurfaceHydroSpan.innerHTML += 'secteurs (⚠️tronqué)';
-        } else {
-            cartoVectoSurfaceHydroSpan.innerHTML += 'secteur(s))';
-        }
-    }
-}
-
-function displayCartoVectoSitesPolluesTile(features) {
-    if (features.length) {
-        cartoVectoSitesPolluesDiv.style.display = 'inherit';
-        cartoVectoSitesPolluesSpan.innerHTML = features.length + " ";
-        if (features.length == CartoVecto.maxFeatureCount) {
-            cartoVectoSitesPolluesSpan.innerHTML += 'secteurs (⚠️tronqué)';
-        } else {
-            cartoVectoSitesPolluesSpan.innerHTML += 'secteur(s))';
-        }
-    }
-}
-
 function refreshSearchResults() {
-    if (!newSearch) {
+    if (!mountedApp.newSearch) {
         return;
     }
 
     // Afficher les résultats
-    let selectedFeatures = map.getFeatures();
+    let selectedFeatures = mountedApp.getFeatures();
     displayResultsTile(selectedFeatures);
 
     // La recherche a abouti (au moins 1 feature)
     if (selectedFeatures.length) {
         // Fitter la fenêtre sur les features résultantes
-        map.fit();
-
-        // Charger les données des layers additionnelles
-        surfaceHydro.setExtent(map.layer.getSource().getExtent());
-        sitesPollues.setExtent(map.layer.getSource().getExtent());
+        mountedApp.fit();
 
         // Afficher les tuiles de téléchargement de zones
         displayZoneHabilitationTile(selectedFeatures);
 
-        newFeatures = true;
+        mountedApp.newFeatures = true;
+        mountedApp.appKey += 1;
     }
 
-    newSearch = false;
+    mountedApp.newSearch = false;
 }
 
 function refreshAdditionalLayers() {
     // Fin d'une nouvelle recherche uniquement
-    if (!newFeatures) {
+    if (!mountedApp.newFeatures) {
         return;
     }
 
-    displayCartoVectoSurfaceHydroTile(surfaceHydro.getFeatures());
-    displayCartoVectoSitesPolluesTile(sitesPollues.getFeatures());
+    //displayCartoVectoSurfaceHydroTile(surfaceHydro.getFeatures());
+    //displayCartoVectoSitesPolluesTile(sitesPollues.getFeatures());
 
-    newFeatures = false;
+    mountedApp.newFeatures = false;
 }
 
-map.onLoadEnd(refreshAdditionalLayers);
-map.onLoadEnd(refreshSearchResults);
+mountedApp.onLoadEnd(refreshAdditionalLayers);
+mountedApp.onLoadEnd(refreshSearchResults);
 
 // Demander les secteurs associés à une ou plusieurs communes
 function generate(codes, ville) {
     // Reset zone download tiles
     zoneHabilitationDiv.style.display = 'none';
-    cartoVectoSurfaceHydroDiv.style.display = 'none';
-    cartoVectoSitesPolluesDiv.style.display = 'none';
+    //cartoVectoSurfaceHydroDiv.style.display = 'none';
+    //cartoVectoSitesPolluesDiv.style.display = 'none';
 
-    map.requestLayer(
+    mountedApp.requestLayer(
         "/generate?insee_codes=" + codes + "&ville_name=" + ville,
         new ol.format.GeoJSON()
     );
 
-    newSearch = true;
+    mountedApp.newSearch = true;
 }
 
 // Nouvelle recherche de commune(s)
@@ -204,56 +171,9 @@ function resetAndSubmit(codes, ville) {
     return false;
 }
 
-// FIXME: en cas de innerBoundary, génère les tags innerBoundaryIs et outerBoundaryIs dans le mauvais ordre (inner first)
-// Pas standard, et pas compatible avec One.
-function featuresToKML(features) {
-    var kmlFormat = new ol.format.KML({
-        extractStyles: false,
-        writeStyles: false
-    });
-
-    var kml = kmlFormat.writeFeatures(
-        features,
-        {
-            dataProjection : 'EPSG:4326',
-            featureProjection : 'EPSG:3857',
-            decimals: 6
-        });
-
-    return kml;
-}
-
-// Télécharger le fichier KML
-function downloadAsKML(data) {
-    var contentType = 'data:application/vnd.google-earth.kml+xml;charset=utf-8';
-
-    var element = document.createElement('a');
-
-    element.setAttribute('href', contentType + ',' + encodeURIComponent(data));
-    element.setAttribute('download', "output.kml");
-    element.style.display = 'none';
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-}
-
 // Télécharger la zone d'habilitation
 const downloadZoneButton = document.getElementById('download-zone-button');
 downloadZoneButton.addEventListener('click', function() {
-    var kml = featuresToKML(map.layer.getSource().getFeatures());
-    downloadAsKML(kml);
-});
-
-// Télécharger une zone additionnelle
-const downloadSurfaceHydroButton = document.getElementById('download-surface_hydrographique-button');
-downloadSurfaceHydroButton.addEventListener('click', function() {
-    var kml = featuresToKML(surfaceHydro.layer.getSource().getFeatures());
-    downloadAsKML(kml);
-});
-
-// Télécharger une zone additionnelle
-const downloadSitesPolluesButton = document.getElementById('download-sites_pollues-button');
-downloadSitesPolluesButton.addEventListener('click', function() {
-    var kml = featuresToKML(sitesPollues.layer.getSource().getFeatures());
-    downloadAsKML(kml);
+    let kml = MapView.featuresToKML(mountedApp.getFeatures());
+    MapView.downloadAsKML(kml);
 });
