@@ -50,7 +50,7 @@ form {
 }
 
 .results {
-    display: none;
+    /*display: none;*/
     font-size: larger;
     animation-name: fade-in;
     animation-duration: 1s;

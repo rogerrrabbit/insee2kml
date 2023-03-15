@@ -7,27 +7,9 @@ const villeName = document.getElementById("ville-name");
 const communeSelectionSelect = document.getElementById("commune-selection-select");
 const communeSelection = document.getElementById("commune-selection");
 
-//const cartoVectoSurfaceHydroDiv = document.getElementById('carto-vecto-surface_hydrographique');
-//const cartoVectoSurfaceHydroSpan = document.getElementById("carto-vecto-surface_hydrographique-span");
-
-//const cartoVectoSitesPolluesDiv = document.getElementById('carto-vecto-sites_pollues');
-//const cartoVectoSitesPolluesSpan = document.getElementById("carto-vecto-sites_pollues-span");
-
 inseeCodes.addEventListener('input', checkFields);
 villeName.addEventListener('input', checkFields);
 communeSelectionSelect.addEventListener('input', checkSelect);
-
-/*let surfaceHydro = new CartoVecto(
-    mountedApp.olMap,
-    'https://wxs.ign.fr/cartovecto/geoportail/wfs',
-    'BDCARTO_BDD_WLD_WGS84G:surface_hydrographique',
-    MapView.blueStyle);*/
-
-/*let sitesPollues = new CartoVecto(
-    mountedApp.olMap,
-    'https://georisques.gouv.fr/services',
-    'SSP_INSTR_GE_POLYGONE',
-    MapView.dangerStyle);*/
 
 // Sites pollués ou potentiellement pollués appelant une action des pouvoirs publics, à titre préventif ou curatif (BASOL) ms:SSP_INSTR_GE_POLYGONE
 // Aléa débordement cours d'eau fréquent France Métro ms:ALEA_SYNT_01_01FOR_FXX
@@ -35,7 +17,6 @@ communeSelectionSelect.addEventListener('input', checkSelect);
 // Aléa submersion fréquent France Métro ms:ALEA_SYNT_03_01FOR_FXX
 // Retrait-gonflement des argiles France Métro ms:ALEARG_REALISE
 // Zones de sur-aléa inondation France Métro ms:OUV_ZONSALEA_FXX
-
 
 // Vérification de la saisie
 const searchButton = document.getElementById('search-zone');
@@ -120,27 +101,11 @@ function refreshSearchResults() {
 
         // Afficher les tuiles de téléchargement de zones
         displayZoneHabilitationTile(selectedFeatures);
-
-        mountedApp.newFeatures = true;
-        mountedApp.appKey += 1;
     }
 
     mountedApp.newSearch = false;
 }
 
-function refreshAdditionalLayers() {
-    // Fin d'une nouvelle recherche uniquement
-    if (!mountedApp.newFeatures) {
-        return;
-    }
-
-    //displayCartoVectoSurfaceHydroTile(surfaceHydro.getFeatures());
-    //displayCartoVectoSitesPolluesTile(sitesPollues.getFeatures());
-
-    mountedApp.newFeatures = false;
-}
-
-mountedApp.onLoadEnd(refreshAdditionalLayers);
 mountedApp.onLoadEnd(refreshSearchResults);
 
 // Demander les secteurs associés à une ou plusieurs communes

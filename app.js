@@ -17,7 +17,7 @@ const app = Vue.createApp({
             </form>
         </div>
 
-        <div class="tile results" id="results-div">
+        <div class="tile results" id="results-div" style="display:none;">
             <span id="results-span"></span>
             <div id="commune-selection">
                 <br>
@@ -25,7 +25,7 @@ const app = Vue.createApp({
             </div>
         </div>
 
-        <div class="tile results main-layer" id="zone-habilitation-div">
+        <div class="tile results main-layer" id="zone-habilitation-div" style="display:none;">
             <span>🌐 Zone d'habilitation :</span>
             <span id="zone-habilitation-span"></span>
             <br><br>
@@ -34,7 +34,7 @@ const app = Vue.createApp({
             </div>
         </div>
 
-        <vector-layer v-if="olExtent"
+        <vector-layer v-if="featuresCount"
             title="Surfaces hydrographiques"
             mainUrl="https://wxs.ign.fr/cartovecto/geoportail/wfs"
             typename="BDCARTO_BDD_WLD_WGS84G:surface_hydrographique"
@@ -43,7 +43,7 @@ const app = Vue.createApp({
             :key="olExtent">
         </vector-layer>
 
-        <vector-layer v-if="olExtent"
+        <vector-layer v-if="featuresCount"
             title="Sites pollués"
             mainUrl="https://georisques.gouv.fr/services"
             typename="SSP_INSTR_GE_POLYGONE"
@@ -56,7 +56,6 @@ const app = Vue.createApp({
     data() {
         return {
             newSearch: false,
-            newFeatures: false,
             hoveredFeature: null,
             olExtent: null,
             olLayer: null,
@@ -77,11 +76,18 @@ const app = Vue.createApp({
         };
     },
 
+    computed: {
+        featuresCount() {
+            return this.olLayerFeatures.length;
+        }
+    },
+
     methods: {
         requestLayer(url, format) {
             /* Remove previously selected layer(s) if any */
             if (this.olLayer != null) {
                 this.olMap.removeLayer(this.olLayer);
+                this.olLayerFeatures = [];
             }
     
             // New zone
@@ -102,6 +108,7 @@ const app = Vue.createApp({
 
         fit() {
             this.olExtent = this.olLayer.getSource().getExtent();
+            this.olLayerFeatures = this.getFeatures();
             this.olMap.getView().fit(this.olExtent,
             {
                 size: this.olMap.getSize(),
@@ -130,9 +137,6 @@ const app = Vue.createApp({
         // Fin de chargement de la layer
         mapLoadEnd(evt) {
             this.olMap.getTargetElement().classList.remove('spinner');
-            if (this.olLayer) {
-                this.olLayerFeatures = this.getFeatures();
-            }
         },
 
         // Mise en valeur du placemark + tooltip
