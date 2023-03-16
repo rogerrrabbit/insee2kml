@@ -166,10 +166,10 @@ def make_app():
         (r'/(logo_header.png)', tornado.web.StaticFileHandler, {"path": ""}),
         (r'/(favicon.ico)', tornado.web.StaticFileHandler, {"path": ""}),
         (r'/(style.css)', tornado.web.StaticFileHandler, {"path": ""}),
-        (r'/(main.js)', tornado.web.StaticFileHandler, {"path": ""}),
         (r'/(vectorlayer.js)', tornado.web.StaticFileHandler, {"path": ""}),
         (r'/(mapview.js)', tornado.web.StaticFileHandler, {"path": ""}),
         (r'/(app.js)', tornado.web.StaticFileHandler, {"path": ""}),
+        (r'/(layers.js)', tornado.web.StaticFileHandler, {"path": ""}),
     ])
 
 # Recherche du fichier de données

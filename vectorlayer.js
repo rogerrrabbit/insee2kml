@@ -2,12 +2,10 @@ app.component('vector-layer', {
     template:
         `<div v-if="featuresCount" class="tile results additional-layer">
             <span>{{ title + ' : ' + featuresCount  + ' ' }}</span>
-            <span v-if="featureCount == maxFeatureCount">secteurs (⚠️tronqué)</span>
+            <span v-if="featuresLimitReached">secteurs (⚠️tronqué)</span>
             <span v-else>secteur(s))</span>
             <br><br>
-            <div>
-                <button type="button" @click="downloadKml">Télécharger au format KML</button>
-            </div>
+            <button @click="donwloadKml">Télécharger au format KML</button>
         </div>`,
 
     props: {
@@ -27,7 +25,7 @@ app.component('vector-layer', {
         }
     },
 
-    created() {
+    mounted() {
         let olSource = new ol.source.Vector({
             format: new ol.format.WFS(),
             url: this.mainUrl
@@ -48,13 +46,11 @@ app.component('vector-layer', {
             style: this.olStyle,
         });
 
-        this.olMap.addLayer(this.olLayer);
-    },
-
-    mounted() {
-        this.olLayer.on("postrender", (evt) => {
+        this.olLayer.once("postrender", (evt) => {
             this.olFeatures = this.getFeatures();
         });
+
+        this.olMap.addLayer(this.olLayer);
     },
 
     beforeUnmount() {
@@ -66,6 +62,10 @@ app.component('vector-layer', {
     computed: {
         featuresCount() {
             return this.olFeatures.length;
+        },
+
+        featuresLimitReached() {
+            return (this.olFeatures.length == this.maxFeatureCount); 
         }
     },
 
@@ -78,7 +78,7 @@ app.component('vector-layer', {
             return this.olLayer.getSource().getFeatures();
         },
 
-        donwloadKml() {
+        donwloadKml(evt) {
             let kml = MapView.featuresToKML(this.getFeatures());
             MapView.downloadAsKML(kml);
         },

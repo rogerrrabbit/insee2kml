@@ -1,65 +1,73 @@
 const app = Vue.createApp({
     template:
         `
-        <div class="tile">
-            <a href="https://www.trela.co/fr/" target="_blank">
-                <img alt="Trela" id="logo" src="./logo_header.png"/>
-            </a>
-            <form onsubmit="return resetAndSubmit(inseeCodes.value, villeName.value);">
-                <br>
-                <label>Entrez des codes INSEE :</label>
-                <input type="text" name="insee_codes" id="insee-codes">
-                <br><br>
-                <label>Ou le nom d'une commune :</label>
-                <input type="text" name="ville_name" id="ville-name">
-                <br><br>
-                <button type='submit' id="search-zone" disabled>Rechercher</button>
-            </form>
-        </div>
-
-        <div class="tile results" id="results-div" style="display:none;">
-            <span id="results-span"></span>
-            <div id="commune-selection">
-                <br>
-                <select title="Communes" id="commune-selection-select"></select>
+        <div id="control">
+            <div class="tile">
+                <a href="https://www.trela.co/fr/" target="_blank">
+                    <img alt="Trela" id="logo" src="./logo_header.png"/>
+                </a>
+                <div>
+                    <br>
+                    <label>Entrez des codes INSEE : </label>
+                    <input @input="checkField" @keyup.enter="submit" v-model="searchCodes"/>
+                    <br><br>
+                    <label>Ou le nom d'une commune : </label>
+                    <input @input="checkField" @keyup.enter="submit" v-model="searchName">
+                    <br><br>
+                    <button @click="submit" :disabled="!searchIsReady">Rechercher</button>
+                </div>
             </div>
-        </div>
 
-        <div class="tile results main-layer" id="zone-habilitation-div" style="display:none;">
-            <span>🌐 Zone d'habilitation :</span>
-            <span id="zone-habilitation-span"></span>
-            <br><br>
-            <div>
-                <button type='button' id="download-zone-button">Télécharger au format KML</button>
+            <div v-if="hasResults" class="tile results">
+                <span v-if="hasMultipleEntities">
+                    🎯 {{ entitiesCount }} communes
+                </span>
+                <span v-else-if="hasUniqueEntity">
+                    🏛️ {{ this.olLayerFeatures[0].get(this.entityValue) }}
+                    ( {{ this.olLayerFeatures[0].get(this.entityKey) }} )
+                </span>
+
+                <div v-if="hasMultipleEntities">
+                    <br>
+                    <select @change="checkSelect">
+                        <option value="0">--Toutes les communes--</option>
+                        <option v-for="entity in uniqueEntities" :value="entity[0]">
+                            {{ entity[1] }} ({{ entity[0] }})
+                        </option>
+                    </select>
+                </div>
             </div>
+
+            <div v-if="featuresCount" class="tile results main-layer">
+                <span>🌐 Zone d'habilitation : </span>
+                <span>{{ featuresCount + ' secteur(s)' }}</span>
+                <br><br>
+                <button @click="downloadKml">Télécharger au format KML</button>
+            </div>
+
+            <template v-if="featuresCount" :key="olLayerFeatures">
+                <vector-layer v-for="vl in vectorLayers"
+                    :title="vl.title"
+                    :mainUrl="vl.mainUrl"
+                    :typename="vl.typename"
+                    :olMap="olMap"
+                    :olExtent="olExtent">
+                </vector-layer>
+            </template>
         </div>
 
-        <vector-layer v-if="featuresCount"
-            title="Surfaces hydrographiques"
-            mainUrl="https://wxs.ign.fr/cartovecto/geoportail/wfs"
-            typename="BDCARTO_BDD_WLD_WGS84G:surface_hydrographique"
-            :olMap="olMap"
-            :olExtent="olExtent"
-            :key="olExtent">
-        </vector-layer>
-
-        <vector-layer v-if="featuresCount"
-            title="Sites pollués"
-            mainUrl="https://georisques.gouv.fr/services"
-            typename="SSP_INSTR_GE_POLYGONE"
-            :olMap="olMap"
-            :olExtent="olExtent"
-            :key="olExtent">
-        </vector-layer>       
+        <div v-show="hasTooltip" class="tooltip" :style="{ left: tooltip.xy[0], top:tooltip.xy[1] }">
+            {{ tooltip.name }}
+        </div>
         `,
 
     data() {
         return {
-            newSearch: false,
-            hoveredFeature: null,
+            entityKey: 'insee_commune',
+            entityValue: 'nom_commune',
             olExtent: null,
             olLayer: null,
-            olLayerFeatures: [],
+            olLayerFeatures: null,
             olMap: new ol.Map({
                 target: 'map',
                 layers: [new ol.layer.Tile({
@@ -72,14 +80,39 @@ const app = Vue.createApp({
                     zoom: MapView.basemapZoomLevel,
                 })
             }),
-            tooltipDiv: document.getElementById('tooltip'),
+            tooltip: { xy: [0, 0], hoveredFeature: null },
+            vectorLayers: LAYERS,
+            searchIsReady: false,
+            uniqueEntities: new Map(),
+            searchCodes: '',
+            searchName: '',
         };
     },
 
     computed: {
         featuresCount() {
-            return this.olLayerFeatures.length;
-        }
+            return (this.olLayerFeatures != null)? this.olLayerFeatures.length : 0;
+        },
+
+        entitiesCount() {
+            return this.uniqueEntities.size;
+        },
+
+        hasResults() {
+            return (this.olLayerFeatures != null);
+        },
+
+        hasTooltip() {
+            return (this.tooltip.hoveredFeature != null);
+        },
+
+        hasUniqueEntity() {
+            return (this.uniqueEntities.size == 1);
+        },
+
+        hasMultipleEntities() {
+            return (this.uniqueEntities.size > 1);
+        },
     },
 
     methods: {
@@ -87,9 +120,9 @@ const app = Vue.createApp({
             /* Remove previously selected layer(s) if any */
             if (this.olLayer != null) {
                 this.olMap.removeLayer(this.olLayer);
-                this.olLayerFeatures = [];
+                this.olLayerFeatures = null;
             }
-    
+
             // New zone
             this.olLayer = new ol.layer.Vector({
                 source: new ol.source.Vector({
@@ -99,16 +132,18 @@ const app = Vue.createApp({
                 style: MapView.unselectedStyle
             });
 
+            // Let the map fit on results when they will be available
+            this.olLayer.once("postrender", this.layerLoadEnd);
+
             // Add the zone
             this.olMap.addLayer(this.olLayer);
-    
+
             // Display the loading spinner
             this.olMap.getTargetElement().classList.add('spinner');
         },
 
         fit() {
             this.olExtent = this.olLayer.getSource().getExtent();
-            this.olLayerFeatures = this.getFeatures();
             this.olMap.getView().fit(this.olExtent,
             {
                 size: this.olMap.getSize(),
@@ -118,32 +153,30 @@ const app = Vue.createApp({
             });
         },
 
-        getFeatures() {
-            return this.olLayer.getSource().getFeatures();
+        downloadKml(evt) {
+            let kml = MapView.featuresToKML(this.olLayerFeatures);
+            MapView.downloadAsKML(kml);
         },
 
-        onLoadEnd(func) {
-            return this.olMap.onLoadEnd(func);
-        },
-
-        onLoadEnd(endFunction) {
-            return this.olMap.on("loadend", endFunction);
-        },
-
-        onPointerMove(moveFunction) {
-            return this.olMap.on("pointermove", moveFunction);
-        },
-
-        // Fin de chargement de la layer
         mapLoadEnd(evt) {
             this.olMap.getTargetElement().classList.remove('spinner');
         },
 
+        layerLoadEnd(evt) {
+            this.olLayerFeatures = this.olLayer.getSource().getFeatures();
+            this.handleResults();
+
+           // Fitter la fenêtre sur les features résultantes
+            if (this.featuresCount > 0) {
+                this.fit();
+            }
+        },
+
         // Mise en valeur du placemark + tooltip
         mouseOverPlacemark(evt) {
-            if (this.hoveredFeature !== null) {
-                this.hoveredFeature.setStyle(MapView.unselectedStyle);
-                this.hoveredFeature = null;
+            if (this.tooltip.hoveredFeature !== null) {
+                this.tooltip.hoveredFeature.setStyle(MapView.unselectedStyle);
+                this.tooltip.hoveredFeature = null;
             }
 
             let feature = null;
@@ -152,30 +185,65 @@ const app = Vue.createApp({
                 return true;
             });
 
-            if (feature && this.olLayerFeatures.includes(feature)) {
+            if (feature) {
                 let featureName = feature.get('name');
-
-                // Filtrer les features d'autres couches
                 if (featureName) {
                     // Afficher le nom de la feature dans une div
-                    this.tooltipDiv.innerHTML = featureName;
-                    this.tooltipDiv.style.display = 'block';
-                    this.tooltipDiv.style.left = (evt.originalEvent.pageX + 15) + 'px';
-                    this.tooltipDiv.style.top = (evt.originalEvent.pageY + 15) + 'px';
+                    this.tooltip.hoveredFeature = feature,
+                    this.tooltip.name = featureName,
+                    this.tooltip.xy = [
+                        (evt.originalEvent.pageX + 15) + 'px',
+                        (evt.originalEvent.pageY + 15) + 'px'
+                    ];
 
                     // Appliquer un style sur la géométrie
                     feature.setStyle(MapView.selectedStyle);
                 }
-                this.hoveredFeature = feature;
+            }
+        },
+
+        handleResults() {
+            this.uniqueEntities = new Map();
+
+            // Parcours des features et groupement par entités
+            this.olLayerFeatures.forEach(feature => this.uniqueEntities.set(
+                feature.get(this.entityKey),
+                feature.get(this.entityValue)
+            ));
+        },
+
+        generate(codes, ville) {
+            mountedApp.requestLayer(
+                "/generate?insee_codes=" + codes + "&ville_name=" + ville,
+                new ol.format.GeoJSON()
+            );
+        },
+
+        // Nouvelle recherche
+        submit() {
+            mountedApp.olLayerFeatures = null;
+            this.generate(this.searchCodes, this.searchName);
+        },
+
+        checkField(event) {
+            if (event.target.value.trim() !== "") {
+                this.searchIsReady = true;
             } else {
-                // Cacher la div s'il n'y a pas de feature sous le curseur
-                this.tooltipDiv.style.display = 'none';
+                this.searchIsReady = false;
+            }
+        },
+
+        checkSelect(event) {
+            if (event.target.value == 0) {
+                this.submit();
+            } else {
+                this.generate(event.target.value, "");
             }
         }
     },
 
     mounted() {
-        this.onPointerMove(this.mouseOverPlacemark);
-        this.onLoadEnd(this.mapLoadEnd);
+        this.olMap.on("pointermove", this.mouseOverPlacemark);
+        this.olMap.on("loadend", this.mapLoadEnd);
     },
 });

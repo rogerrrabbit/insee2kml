@@ -25,14 +25,14 @@ form {
     height: 100%;
 }
 
-#tooltip {
+.tooltip {
     position: absolute;
-    display: none;
+    display: block;
     padding: 2px 2px;
     background-color: white;
 }
 
-.control {
+#control {
     position: absolute;
     width:480px;
     top:20px;
@@ -50,7 +50,6 @@ form {
 }
 
 .results {
-    /*display: none;*/
     font-size: larger;
     animation-name: fade-in;
     animation-duration: 1s;
