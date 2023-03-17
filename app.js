@@ -45,7 +45,7 @@ const app = Vue.createApp({
                 <button @click="downloadKml">Télécharger au format KML</button>
             </div>
 
-            <template v-if="featuresCount" :key="olLayerFeatures">
+            <template v-if="hasUniqueEntity" :key="olLayerFeatures">
                 <vector-layer v-for="vl in vectorLayers"
                     :title="vl.title"
                     :mainUrl="vl.mainUrl"
@@ -82,7 +82,6 @@ const app = Vue.createApp({
             }),
             tooltip: { xy: [0, 0], hoveredFeature: null },
             vectorLayers: LAYERS,
-            searchIsReady: false,
             uniqueEntities: new Map(),
             searchCodes: '',
             searchName: '',
@@ -90,6 +89,10 @@ const app = Vue.createApp({
     },
 
     computed: {
+        searchIsReady() {
+            return (this.searchCodes.trim() != '' || this.searchName.trim() != '');
+        },
+
         featuresCount() {
             return (this.olLayerFeatures != null)? this.olLayerFeatures.length : 0;
         },
@@ -140,6 +143,14 @@ const app = Vue.createApp({
 
             // Display the loading spinner
             this.olMap.getTargetElement().classList.add('spinner');
+
+            // Zoom-out to initial zoom level
+            this.olMap.setView(new ol.View(
+                {
+                    center: ol.proj.fromLonLat(MapView.basemapCenter),
+                    zoom: MapView.basemapZoomLevel,
+                }
+            ));
         },
 
         fit() {
@@ -164,9 +175,14 @@ const app = Vue.createApp({
 
         layerLoadEnd(evt) {
             this.olLayerFeatures = this.olLayer.getSource().getFeatures();
-            this.handleResults();
+            
+            // Parcours des features et groupement par entités
+            this.olLayerFeatures.forEach(feature => this.uniqueEntities.set(
+                feature.get(this.entityKey),
+                feature.get(this.entityValue)
+            ));
 
-           // Fitter la fenêtre sur les features résultantes
+            // Fitter la fenêtre sur les features résultantes
             if (this.featuresCount > 0) {
                 this.fit();
             }
@@ -202,27 +218,17 @@ const app = Vue.createApp({
             }
         },
 
-        handleResults() {
+        search(codes, ville) {
             this.uniqueEntities = new Map();
-
-            // Parcours des features et groupement par entités
-            this.olLayerFeatures.forEach(feature => this.uniqueEntities.set(
-                feature.get(this.entityKey),
-                feature.get(this.entityValue)
-            ));
-        },
-
-        generate(codes, ville) {
             mountedApp.requestLayer(
-                "/generate?insee_codes=" + codes + "&ville_name=" + ville,
+                "/search?insee_codes=" + codes + "&ville_name=" + ville,
                 new ol.format.GeoJSON()
             );
         },
 
-        // Nouvelle recherche
         submit() {
             mountedApp.olLayerFeatures = null;
-            this.generate(this.searchCodes, this.searchName);
+            this.search(this.searchCodes, this.searchName);
         },
 
         checkField(event) {
@@ -237,7 +243,7 @@ const app = Vue.createApp({
             if (event.target.value == 0) {
                 this.submit();
             } else {
-                this.generate(event.target.value, "");
+                this.search(event.target.value, "");
             }
         }
     },

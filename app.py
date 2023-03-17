@@ -104,7 +104,7 @@ def get_insee_codes(name):
     return codes_commune
 
 # Générer un fichier de zone et le retourner
-class GenerateHandler(tornado.web.RequestHandler):
+class SearchHandler(tornado.web.RequestHandler):
     def get(self):
         # Récupère la saisie de l'utilisateur
         insee_codes = self.get_argument('insee_codes', '')
@@ -162,7 +162,7 @@ class DownloadBar():
 def make_app():
     return tornado.web.Application([
         (r'/', MainHandler),
-        (r'/generate', GenerateHandler),
+        (r'/search', SearchHandler),
         (r'/(logo_header.png)', tornado.web.StaticFileHandler, {"path": ""}),
         (r'/(favicon.ico)', tornado.web.StaticFileHandler, {"path": ""}),
         (r'/(style.css)', tornado.web.StaticFileHandler, {"path": ""}),
