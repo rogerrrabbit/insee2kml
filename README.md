@@ -18,7 +18,8 @@ This project aims to provide a web application for generating KML files based on
 
 ## Built with
 
-* OpenLayers 7.2.2
+* OpenLayers 7.3.0
+* VueJS 3.2.29
 * Stamen
 
 ## Source data
