@@ -24,7 +24,7 @@ const app = Vue.createApp({
                 </span>
                 <span v-else-if="hasUniqueEntity">
                     🏛️ {{ this.olLayerFeatures[0].get(this.entityValue) }}
-                    ( {{ this.olLayerFeatures[0].get(this.entityKey) }} )
+                    ({{ this.olLayerFeatures[0].get(this.entityKey) }})
                 </span>
 
                 <div v-if="hasMultipleEntities">
@@ -36,6 +36,11 @@ const app = Vue.createApp({
                         </option>
                     </select>
                 </div>
+            </div>
+            <div v-else-if="hadRequested" class="tile results">
+                <span>
+                    🦖 Pas de résultat !
+                </span>
             </div>
 
             <div v-if="featuresCount" class="tile results main-layer">
@@ -83,6 +88,7 @@ const app = Vue.createApp({
             tooltip: { xy: [0, 0], hoveredFeature: null },
             vectorLayers: LAYERS,
             uniqueEntities: new Map(),
+            requestStatus: 0,
             searchCodes: '',
             searchName: '',
         };
@@ -102,7 +108,11 @@ const app = Vue.createApp({
         },
 
         hasResults() {
-            return (this.olLayerFeatures != null);
+            return (this.entitiesCount > 0);
+        },
+
+        hadRequested() {
+            return (this.requestStatus == 2);
         },
 
         hasTooltip() {
@@ -120,7 +130,10 @@ const app = Vue.createApp({
 
     methods: {
         requestLayer(url, format) {
-            /* Remove previously selected layer(s) if any */
+            // Initiate new request
+            this.requestStatus = 1;
+
+            // Remove previously selected layer(s) if any
             if (this.olLayer != null) {
                 this.olMap.removeLayer(this.olLayer);
                 this.olLayerFeatures = null;
@@ -171,8 +184,11 @@ const app = Vue.createApp({
 
         mapLoadEnd(evt) {
             this.olMap.getTargetElement().classList.remove('spinner');
+            if (this.requestStatus) {
+                this.requestStatus = 2;
+            }
         },
-
+ 
         layerLoadEnd(evt) {
             this.olLayerFeatures = this.olLayer.getSource().getFeatures();
             

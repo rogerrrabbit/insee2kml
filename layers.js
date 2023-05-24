@@ -1,9 +1,9 @@
 const LAYERS = [
-    {
+    /*{
         "title": "Surfaces hydrographiques",
         "mainUrl": "https://wxs.ign.fr/cartovecto/geoportail/wfs",
         "typename": "BDCARTO_BDD_WLD_WGS84G:surface_hydrographique"
-    },
+    },*/
 
     /*{
         "title": "Pistes d'aérodromes",
@@ -31,12 +31,11 @@ const LAYERS = [
         "typename": "ms:ALEA_SYNT_02_01FOR_FXX"
     },*/
 
-    /*{
+    {
         "title": "Aléa submersion fréquent",
         "mainUrl": "https://georisques.gouv.fr/services",
         "typename": "ms:ALEA_SYNT_03_01FOR_FXX"
-    },*/
-
+    },
 
     /*{
         "title": "Retrait-gonflement des argiles",

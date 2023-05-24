@@ -22,9 +22,9 @@ def get_random_string(length):
     # Chaîne de caractères alpha aléatoires
     return ''.join(random.choice(string.ascii_letters) for i in range(length))
 
-def escape_expression_qgis(s):
-    # Remplace les espaces et les caractères non alphanumériques par des %
-    return re.sub(r'[^a-zA-Z]+', '_', s.replace(' ', '_'))
+def escape_expression_qgis(s, wildcard):
+    # Remplace les caractères non alphabétiques
+    return re.sub("[^a-zA-ZÀ-ÿ]", wildcard, s)
 
 # Extraire les features sélectionnées au sein d'une layer vers une nouvelle layer
 def select_features(source):
@@ -88,12 +88,16 @@ def get_insee_codes(name):
     print(f"Recherche de {name}...", file=sys.stderr)
 
     # Try with exact match (but not case sensitive)
-    expression = "\"NOM_COM\" ILIKE '{}'".format(escape_expression_qgis(name))
+    expression = "\"NOM_COM\" ILIKE '{}'".format(escape_expression_qgis(name, '_'))
     features = list(COMMUNES.getFeatures(QgsFeatureRequest().setFilterExpression(expression)))
     if not features:
         # Try harder (characters before and after)
-        expression = "\"NOM_COM\" ILIKE '%{}%'".format(escape_expression_qgis(name))
+        expression = "\"NOM_COM\" ILIKE '%{}%'".format(escape_expression_qgis(name, '_'))
         features = list(COMMUNES.getFeatures(QgsFeatureRequest().setFilterExpression(expression)))
+        if not features:
+            # Paranoïa
+            expression = "\"NOM_COM\" ILIKE '%{}%'".format(escape_expression_qgis(name, '%'))
+            features = list(COMMUNES.getFeatures(QgsFeatureRequest().setFilterExpression(expression)))
 
     # Liste des codes communes obtenus (sans doublon)
     codes_commune = list(set(f["INSEE_COM"] for f in features))
