@@ -1,9 +1,8 @@
 class MapView {
-
     // Basemap
-    static #basemapStyle = "toner-lite";
-    static #basemapCenter = [4.35183, 48.85658];
-    static #basemapZoomLevel = 6;
+    static basemapStyle = "toner-lite";
+    static basemapCenter = [4.35183, 48.85658];
+    static basemapZoomLevel = 6;
 
     // Placemarks styles
     static unselectedStyle = new ol.style.Style({
@@ -33,7 +32,7 @@ class MapView {
             width: 3,
         })
     });
-    static dangertyle = new ol.style.Style({
+    static dangerStyle = new ol.style.Style({
         fill: new ol.style.Fill({
             color: 'rgba(156, 25, 143, 0.15)',
         }),
@@ -43,129 +42,35 @@ class MapView {
         })
     });
 
-    #olMap;
-    #olLayer;
-    #olLayerFeatures;
-    #hoveredFeature;
-    #tooltipDiv;
-
-    constructor() {
-        let olMap = new ol.Map({
-            target: 'map',
-            layers: [new ol.layer.Tile({
-                source: new ol.source.Stamen({
-                    layer: MapView.#basemapStyle
-                })
-            })],
-            view: new ol.View({
-                center: ol.proj.fromLonLat(MapView.#basemapCenter),
-                zoom: MapView.#basemapZoomLevel,
-            })
+    // FIXME: en cas de innerBoundary, génère les tags innerBoundaryIs et outerBoundaryIs dans le mauvais ordre (inner first)
+    // Pas standard, et pas compatible avec One.
+    static featuresToKML(features) {
+        var kmlFormat = new ol.format.KML({
+            extractStyles: false,
+            writeStyles: false
         });
 
-        this.#olMap = olMap;
-        this.#olLayer = null;
-        this.#olLayerFeatures = [];
-        this.#hoveredFeature = null;
-        this.#tooltipDiv = document.getElementById('tooltip');
+        var kml = kmlFormat.writeFeatures(
+            features,
+            {
+                dataProjection : 'EPSG:4326',
+                featureProjection : 'EPSG:3857',
+                decimals: 6
+            });
 
-        this.onPointerMove(this.#mouseOverPlacemark);
-        this.onLoadEnd(this.#mapLoadEnd);
+        return kml;
     }
 
-    get map () {
-        return this.#olMap;
-    }
+    // Télécharger un fichier KML
+    static downloadAsKML(data) {
+        var contentType = 'data:application/vnd.google-earth.kml+xml;charset=utf-8';
+        var element = document.createElement('a');
 
-    get layer() {
-        return this.#olLayer;
-    }
-
-    requestLayer(url, format) {
-        /* Remove previously selected layer(s) if any */
-        if (this.#olLayer != null) {
-            this.#olMap.removeLayer(this.#olLayer);
-        }
-
-        // New zone
-        this.#olLayer = new ol.layer.Vector({
-            source: new ol.source.Vector({
-                url: url,
-                format: format
-            }),
-            style: MapView.unselectedStyle
-        });
-
-        // Add the zone
-        this.#olMap.addLayer(this.#olLayer);
-
-        // Display the loading spinner
-        this.#olMap.getTargetElement().classList.add('spinner');
-    }
-
-    fit() {
-        this.#olMap.getView().fit(this.#olLayer.getSource().getExtent(),
-        {
-            size: this.#olMap.getSize(),
-            padding: [150, 600, 150, 150],
-            maxZoom: 16,
-            duration: 1000,
-        });
-    }
-
-    getFeatures() {
-        if (!this.#olLayer) {
-            return [];
-        }
-        return this.#olLayer.getSource().getFeatures();
-    }
-
-    onLoadEnd(endFunction) {
-        this.#olMap.on("loadend", endFunction);
-    }
-    onPointerMove(moveFunction) {
-        this.#olMap.on("pointermove", moveFunction);
-    }
-
-    // Mise en valeur du placemark + tooltip
-    #mouseOverPlacemark = (evt) => {
-        if (this.#hoveredFeature !== null) {
-            this.#hoveredFeature.setStyle(MapView.unselectedStyle);
-            this.#hoveredFeature = null;
-        }
-
-        let feature = null;
-        this.#olMap.forEachFeatureAtPixel(evt.pixel, function (ft) {
-            feature = ft;
-            return true;
-        });
-
-        if (feature && this.#olLayerFeatures.includes(feature)) {
-            let featureName = feature.get('name');
-
-            // Filtrer les features d'autres couches
-            if (featureName) {
-                // Afficher le nom de la feature dans une div
-                this.#tooltipDiv.innerHTML = featureName;
-                this.#tooltipDiv.style.display = 'block';
-                this.#tooltipDiv.style.left = (evt.originalEvent.pageX + 15) + 'px';
-                this.#tooltipDiv.style.top = (evt.originalEvent.pageY + 15) + 'px';
-
-                // Appliquer un style sur la géométrie
-                feature.setStyle(MapView.selectedStyle);
-            }
-            this.#hoveredFeature = feature;
-        } else {
-            // Cacher la div s'il n'y a pas de feature sous le curseur
-            this.#tooltipDiv.style.display = 'none';
-        }
-    };
-
-    // Fin de chargement de la layer
-    #mapLoadEnd = (evt) => {
-        this.#olMap.getTargetElement().classList.remove('spinner');
-        if (this.#olLayer) {
-            this.#olLayerFeatures = this.#olLayer.getSource().getFeatures();
-        }
+        element.setAttribute('href', contentType + ',' + encodeURIComponent(data));
+        element.setAttribute('download', "output.kml");
+        element.style.display = 'none';
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
     }
 }
